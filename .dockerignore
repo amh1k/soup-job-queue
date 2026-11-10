@@ -1,0 +1,8 @@
+.git
+.agents
+.codex
+.aws
+.env*
+bin
+results
+*.pdf
