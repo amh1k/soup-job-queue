@@ -4,7 +4,7 @@ A training-job queue backed by PostgreSQL.
 
 ## Current implementation
 
-Tasks 1–3 provide the schema, migrations, job API, and database operations for worker claims, leases, completion, failure, and recovery. The worker process loop comes in Task 4, so the running API alone leaves jobs queued.
+Tasks 1–4 provide the schema, migrations, job API, worker persistence operations, and worker runtime. Docker Compose starts the API and four independent workers. Execution is simulated with a cancellable timer and a database effect row.
 
 ## Start with Docker Compose
 
@@ -16,7 +16,7 @@ curl --fail http://localhost:8080/healthz
 curl --fail http://localhost:8080/readyz
 ```
 
-Compose waits for PostgreSQL, applies migrations, then starts the API. The database uses a named volume; `docker compose down` preserves data. `docker compose down -v` **deletes** that data. The included database credentials are for local development.
+Compose waits for PostgreSQL, applies migrations, then starts the API and four workers. The database uses a named volume; `docker compose down` preserves data. `docker compose down -v` **deletes** that data. The included database credentials are for local development.
 
 | Endpoint | Response |
 | --- | --- |
@@ -64,7 +64,7 @@ docker compose up --build -d
 docker compose exec db psql -U soup -d soup -c "SELECT id, status FROM jobs WHERE idempotency_key = 'persistence-check'"
 ```
 
-Wait for the database to become healthy before the final query. The expected result is the original row, still queued.
+Wait for the database to become healthy before the final query. The expected result is the original row; its status may be succeeded because workers process it.
 
 Verification performed in the development sandbox is recorded in [docs/task-1-verification.md](docs/task-1-verification.md). AI assistance is recorded in [docs/ai-usage.md](docs/ai-usage.md).
 
@@ -100,14 +100,14 @@ curl -X POST http://localhost:8080/jobs/JOB_UUID/cancel
 
 Pass `next_cursor` unchanged as the next request's `cursor`, with the same status filter. Omit `status` to list all states. Limits range from 1 to 100. Jobs are ordered by creation timestamp and UUID. Pagination traverses live data; concurrent status changes can affect filtered results between requests. Cursors are opaque navigation values, not security credentials.
 
-Errors use `{"error":{"code":"...","message":"..."}}`. Invalid input returns 400, oversized input 413, unsupported content type 415, and a request/database deadline 503. A response may be lost after creation commits: retry with the original idempotency key. Cancellation invalidates the existing claim and clears lease ownership; the worker persistence operations check that ownership before renewal or completion. The actual worker loop comes in Task 4.
+Errors use `{"error":{"code":"...","message":"..."}}`. Invalid input returns 400, oversized input 413, unsupported content type 415, and a request/database deadline 503. A response may be lost after creation commits: retry with the original idempotency key. Cancellation invalidates the existing claim and clears lease ownership; the worker persistence operations check that ownership before renewal or completion. Workers detect lost ownership on heartbeat or finalization and abandon that attempt.
 
 Task 2 verification and pending database checks: [docs/task-2-verification.md](docs/task-2-verification.md).
 
 
 ## Worker persistence operations (Task 3)
 
-`PostgresStore` now implements `jobs.Queue` for the upcoming worker runtime:
+`PostgresStore` now implements `jobs.Queue` for the worker runtime:
 
 | Method | Behavior |
 | --- | --- |
@@ -131,3 +131,36 @@ TEST_DATABASE_URL='postgres://soup:soup@localhost:5432/soup_test?sslmode=disable
 ```
 
 Test coverage and environment limits: [docs/task-3-verification.md](docs/task-3-verification.md). Design references: [PostgreSQL row locking](https://www.postgresql.org/docs/18/sql-select.html#SQL-FOR-UPDATE-SHARE), [database clock functions](https://www.postgresql.org/docs/18/functions-datetime.html#FUNCTIONS-DATETIME-CURRENT).
+
+
+## Run workers (Task 4)
+
+```sh
+# Compose starts all four workers automatically.
+docker compose up --build
+# Inspect lifecycle logs.
+docker compose logs -f worker-1 worker-2 worker-3 worker-4
+# Or run an additional worker locally against DATABASE_URL after migrations.
+WORKER_ID=local-worker go run ./cmd/worker
+```
+
+Each process handles one job at a time. A separate recovery loop scans expired leases even while the process is executing a job. Empty-queue polling adds jitter; failed claims use backoff capped at two seconds before jitter. An execution with `simulate_failure=true` records `execution_failed` with no effect.
+
+| Worker setting | Default | Purpose |
+| --- | --- | --- |
+| `WORKER_ID` | Random per process | Identity included in claims and logs; Compose sets worker-1 through worker-4 |
+| `LEASE_DURATION` | `10s` | Lease assigned and renewed by the database |
+| `HEARTBEAT_INTERVAL` | `2s` | Renewal interval while executing |
+| `POLL_INTERVAL` | `100ms` | Idle polling interval before jitter |
+| `RECOVERY_INTERVAL` | `1s` | Interval between expired-job scans |
+| `RECOVERY_BATCH` | `100` | Maximum jobs recovered per scan (1–1000) |
+
+`DB_TIMEOUT` also bounds worker database operations. Heartbeat interval plus database timeout must be less than the lease duration. Runtime leases must be between 1ms and 24h, and poll/recovery intervals must be positive and no more than one minute. Compose gives each worker four database connections, allowing claim/heartbeat and recovery operations to proceed independently.
+
+SIGINT/SIGTERM cancels execution, stops heartbeats and recovery, and waits for those operations to return. An unfinished job remains running until its lease expires and a surviving/restarted worker recovers it. Any heartbeat error abandons the attempt; infrastructure errors do not turn into execution failures. Unexpected duplicate effects stop the worker with an error. Unknown completion commits are checked with a fresh bounded read and are never blindly repeated.
+
+Compose workers restart after unexpected exits. At startup the worker verifies migrations; startup database failures cause an exit and Compose retries. During normal operation, transient claim and recovery failures are logged and retried. Structured logs include worker ID and, for active attempts, job ID, claim version, and attempt count.
+
+Worker unit tests are part of `make test`. `make test-integration` also includes worker lifecycle and SIGKILL/replacement tests on a disposable PostgreSQL database. Environment limitations and exact checks: [docs/task-4-verification.md](docs/task-4-verification.md).
+
+References: [Go signal contexts](https://pkg.go.dev/os/signal#NotifyContext), [Compose configuration fragments](https://docs.docker.com/reference/compose-file/fragments/).

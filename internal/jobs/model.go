@@ -85,7 +85,7 @@ type Failure struct {
 	Message string
 }
 
-// Queue is the persistence interface used by the future worker runtime.
+// Queue is the persistence interface used by the worker runtime.
 type Queue interface {
 	ClaimNext(context.Context, string) (*Claim, error)
 	Renew(context.Context, Claim) error

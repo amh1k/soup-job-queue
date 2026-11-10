@@ -1,3 +1,22 @@
+x-worker: &worker
+  build: .
+  command: ["/app/worker"]
+  init: true
+  restart: unless-stopped
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+  stop_grace_period: 15s
+  environment: &worker-env
+    DATABASE_URL: postgres://soup:soup@db:5432/soup?sslmode=disable
+    DB_MAX_CONNS: "4"
+    DB_TIMEOUT: 3s
+    LEASE_DURATION: 10s
+    HEARTBEAT_INTERVAL: 2s
+    POLL_INTERVAL: 100ms
+    RECOVERY_INTERVAL: 1s
+    RECOVERY_BATCH: "100"
+
 services:
   db:
     image: postgres:18.6-alpine
@@ -41,6 +60,27 @@ services:
       timeout: 5s
       retries: 5
     stop_grace_period: 15s
+
+  worker-1:
+    <<: *worker
+    environment:
+      <<: *worker-env
+      WORKER_ID: worker-1
+  worker-2:
+    <<: *worker
+    environment:
+      <<: *worker-env
+      WORKER_ID: worker-2
+  worker-3:
+    <<: *worker
+    environment:
+      <<: *worker-env
+      WORKER_ID: worker-3
+  worker-4:
+    <<: *worker
+    environment:
+      <<: *worker-env
+      WORKER_ID: worker-4
 
 volumes:
   postgres_data:

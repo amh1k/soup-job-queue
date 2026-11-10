@@ -1,8 +1,9 @@
-.PHONY: build test test-integration vet up down migrate run
+.PHONY: build test test-integration vet up down migrate run worker
 
 build:
 	go build -o bin/api ./cmd/api
 	go build -o bin/migrate ./cmd/migrate
+	go build -o bin/worker ./cmd/worker
 
 test:
 	go test ./internal/...
@@ -25,3 +26,6 @@ migrate:
 
 run:
 	go run ./cmd/api
+
+worker:
+	go run ./cmd/worker

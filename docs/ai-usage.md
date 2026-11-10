@@ -9,3 +9,6 @@ For Task 2, Codex implemented the PostgreSQL job store, HTTP job endpoints, curs
 
 
 For Task 3, Codex implemented worker persistence methods, claim-version fencing, database-clock lease validation, atomic effect/completion, recovery, commit-uncertainty reporting, and targeted tests. Source review used the PostgreSQL row-locking and date/time documentation linked in the README. Executed checks and unverified concurrency cases are recorded in `task-3-verification.md`; no independent human verification is claimed.
+
+
+For Task 4, Codex implemented the worker loop, environment settings, subprocess entry point, four-worker Compose configuration, heartbeat/recovery behavior, shutdown, completion reconciliation, tests, and usage documentation. Unit tests and static checks were executed; the real PostgreSQL lifecycle/SIGKILL tests and Compose runtime checks remain pending as described in `task-4-verification.md`. No independent human verification is claimed.
