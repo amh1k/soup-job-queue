@@ -1,0 +1,7 @@
+go build -o bin/api ./cmd/api
+go build -o bin/migrate ./cmd/migrate
+go build -o bin/worker ./cmd/worker
+go build -o bin/chaos ./cmd/chaos
+# github.com/amh1k/soup-job-queue/internal/experiment
+internal/experiment/session.go:221:8: row.PoolAcquireNS undefined (type sample has no field or method PoolAcquireNS)
+make: *** [Makefile:7: build] Error 1

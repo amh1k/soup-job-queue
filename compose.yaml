@@ -1,3 +1,16 @@
+x-experiment: &experiment
+  build: .
+  profiles: [experiments]
+  init: true
+  user: "${EXPERIMENT_UID:-1000}:${EXPERIMENT_GID:-1000}"
+  environment:
+    DATABASE_URL: postgres://soup:soup@db:5432/soup?sslmode=disable
+  volumes:
+    - ./results:/app/results
+  depends_on:
+    db:
+      condition: service_healthy
+
 x-worker: &worker
   build: .
   command: ["/app/worker"]
@@ -81,6 +94,13 @@ services:
     environment:
       <<: *worker-env
       WORKER_ID: worker-4
+
+  chaos:
+    <<: *experiment
+    entrypoint: ["/app/chaos", "-worker-bin", "/app/worker"]
+  load:
+    <<: *experiment
+    entrypoint: ["/app/load", "-worker-bin", "/app/worker"]
 
 volumes:
   postgres_data:

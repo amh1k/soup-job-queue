@@ -12,3 +12,6 @@ For Task 3, Codex implemented worker persistence methods, claim-version fencing,
 
 
 For Task 4, Codex implemented the worker loop, environment settings, subprocess entry point, four-worker Compose configuration, heartbeat/recovery behavior, shutdown, completion reconciliation, tests, and usage documentation. Unit tests and static checks were executed; the real PostgreSQL lifecycle/SIGKILL tests and Compose runtime checks remain pending as described in `task-4-verification.md`. No independent human verification is claimed.
+
+
+For Tasks 5–6, Codex implemented the chaos/load tools, independent audit, process supervisor, immutable run evidence, tests, Compose profiles, and delivery documents. Five actual CLI invocations failed before database access; they were retained and explicitly classified as preflight attempts. Codex wrote an AI-assisted reflection draft and a DON'T SHIP verdict grounded in those observed limitations. No successful 10,000-job workload, measured 100 RPS result, or independent human review is claimed. The submitter should review the design and reflection, run the pending checks in an accessible environment, and record their actual accepted/changed/independently verified work here.

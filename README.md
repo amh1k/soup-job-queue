@@ -4,7 +4,7 @@ A training-job queue backed by PostgreSQL.
 
 ## Current implementation
 
-Tasks 1–4 provide the schema, migrations, job API, worker persistence operations, and worker runtime. Docker Compose starts the API and four independent workers. Execution is simulated with a cancellable timer and a database effect row.
+The service, four-worker deployment, chaos harness, load driver, independent audit, and delivery documentation are implemented. Execution is simulated with a cancellable timer and a database effect row. Full database/chaos/load verification remains pending; see the [evidence index](docs/evidence.md) and [DON'T SHIP verdict](docs/verdict.md).
 
 ## Start with Docker Compose
 
@@ -58,7 +58,7 @@ Integration tests require a **disposable database** whose user can create schema
 To check container persistence, insert a temporary job, run `docker compose down`, start again, and query it:
 
 ```sh
-docker compose exec db psql -U soup -d soup -c "INSERT INTO jobs (idempotency_key, request) VALUES ('persistence-check', '{}') ON CONFLICT DO NOTHING"
+docker compose exec db psql -U soup -d soup -c "INSERT INTO jobs (idempotency_key, request) VALUES ('persistence-check', jsonb_build_object('duration_ms',100,'simulate_failure',false)) ON CONFLICT DO NOTHING"
 docker compose down
 docker compose up --build -d
 docker compose exec db psql -U soup -d soup -c "SELECT id, status FROM jobs WHERE idempotency_key = 'persistence-check'"
@@ -164,3 +164,46 @@ Compose workers restart after unexpected exits. At startup the worker verifies m
 Worker unit tests are part of `make test`. `make test-integration` also includes worker lifecycle and SIGKILL/replacement tests on a disposable PostgreSQL database. Environment limitations and exact checks: [docs/task-4-verification.md](docs/task-4-verification.md).
 
 References: [Go signal contexts](https://pkg.go.dev/os/signal#NotifyContext), [Compose configuration fragments](https://docs.docker.com/reference/compose-file/fragments/).
+
+
+## Chaos harness and load evaluation (Tasks 5–6)
+
+Run these commands from the repository root with an accessible PostgreSQL database. The experiment user must be able to create schemas. Each invocation creates a fresh schema, applies migrations, starts the real API handler on an ephemeral local HTTP port, and supervises its own worker processes. It never clears the normal application's tables. Failed and successful experiment schemas remain available for diagnosis; remove a recorded experiment schema manually only after preserving the evidence you need.
+
+```sh
+export DATABASE_URL='postgres://soup:soup@localhost:5432/soup?sslmode=disable'
+make build
+TEST_DATABASE_URL='postgres://soup:soup@localhost:5432/soup_test?sslmode=disable' make test-integration
+./bin/chaos -seed 1
+./bin/chaos -seed 2
+./bin/chaos -seed 3
+./bin/load -mode mixed
+./bin/load -mode create
+```
+
+`chaos` defaults to 10,000 unique jobs, eight workers, a random SIGKILL roughly every two seconds, and at least 30 seconds of parallel retry/cancellation/fault traffic (longer if initial creation takes longer). Durations are seeded 20–100 ms with approximately 2% simulated execution failures. After fault traffic stops, the harness restores the configured worker count and allows up to five minutes to drain. It requires repeated POSTs, acknowledged cancellations, and enough successful kills to count as coverage. Unexpected worker exits fail the run immediately; planned kills are replaced. Overall timeout is 15 minutes.
+
+`load` defaults to eight workers, a 30-second warm-up, and five minutes of scheduled 100 RPS. The mixed profile uses 50% create, 30% read, 10% list, and 10% cancel; 10% of create requests replay their previous key. The create profile sends 100 unique job creations per second. New load jobs simulate 50–150 ms execution; 32 initial one-millisecond jobs supply IDs for reads/cancellations. Warm-up requests are excluded from performance statistics but retained in raw evidence.
+
+The driver does not wait for a response before scheduling the next arrival. Requests beyond `-max-inflight` (default 256) are recorded as drops, not silently delayed. Raw samples contain scheduled, dispatched, and completed timestamps. Reports include response p50/p95/p99, scheduled-to-completion p95, scheduling-lag p95, dispatch/successful request RPS, execution completion rate, errors/drops, and queue growth. Raw metrics include queue age/states/attempts and API pool pressure. API and generator share a process, so their Go memory statistics are combined; worker CPU/max-RSS is recorded at exit and DB resource monitoring still requires external collection.
+
+Experiment results are stored under a new `results/<kind>-<timestamp>-seed<seed>-<unique>/` directory every time. Each contains source/config/environment metadata, a manifest, raw JSONL events, and a final summary if the invocation reaches cleanup. Runs that start also have raw API/worker logs, per-phase HTTP counts, audit output, and (for load) a load report. No directory is overwritten. A run without a final summary is incomplete and should be kept. The CLI exits nonzero on failed preflight, workload errors, drain timeout, invariant violations, insufficient coverage, or unmet load targets.
+
+An independent final audit compares every manifest key and normalized payload, checks terminal states, attempt limits, ownership cleanup, acknowledged cancellations, orphan/duplicate effects, and effect claim versions. Timed-out creations are retried with their original keys; load reconciliation happens outside the measured stream. That does not erase a measurement error/drop. See [silent failures](docs/silent-failures.md) for protections, targeted tests, and blind spots.
+
+To run the same experiments inside Docker with eight child worker processes and persistent local evidence:
+
+```sh
+mkdir -p results
+export EXPERIMENT_UID="$(id -u)" EXPERIMENT_GID="$(id -g)"
+docker compose --profile experiments build chaos load
+docker compose --profile experiments run --rm chaos -seed 1
+docker compose --profile experiments run --rm chaos -seed 2
+docker compose --profile experiments run --rm chaos -seed 3
+docker compose --profile experiments run --rm load -mode mixed
+docker compose --profile experiments run --rm load -mode create
+```
+
+The experiment services are opt-in and use an init process for child reaping; no Docker socket mount is needed. Their workers only read their fresh schema, so normal workers can coexist, although running the normal stack at the same time will compete for host/database resources. For capacity evaluation, use a dedicated test deployment and record its hardware limits.
+
+Deliverables: [one-page design note](docs/design.md), [failure analysis](docs/silent-failures.md), [raw evidence index](docs/evidence.md), [verdict](docs/verdict.md), [reflection draft](docs/reflection.md), and [AI usage](docs/ai-usage.md). Verification details: [Tasks 5–6](docs/task-5-6-verification.md).
