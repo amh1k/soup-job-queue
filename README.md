@@ -4,7 +4,7 @@ A training-job queue backed by PostgreSQL.
 
 ## Current implementation
 
-Tasks 1–2 provide the schema, atomic checksum-verified migrations, configuration, health checks, and the job API. Jobs stay queued until workers are implemented in Tasks 3–4.
+Tasks 1–3 provide the schema, migrations, job API, and database operations for worker claims, leases, completion, failure, and recovery. The worker process loop comes in Task 4, so the running API alone leaves jobs queued.
 
 ## Start with Docker Compose
 
@@ -100,6 +100,34 @@ curl -X POST http://localhost:8080/jobs/JOB_UUID/cancel
 
 Pass `next_cursor` unchanged as the next request's `cursor`, with the same status filter. Omit `status` to list all states. Limits range from 1 to 100. Jobs are ordered by creation timestamp and UUID. Pagination traverses live data; concurrent status changes can affect filtered results between requests. Cursors are opaque navigation values, not security credentials.
 
-Errors use `{"error":{"code":"...","message":"..."}}`. Invalid input returns 400, oversized input 413, unsupported content type 415, and a request/database deadline 503. A response may be lost after creation commits: retry with the original idempotency key. Cancellation invalidates the existing claim and clears lease ownership; worker cooperation and completion races will be implemented in Task 3.
+Errors use `{"error":{"code":"...","message":"..."}}`. Invalid input returns 400, oversized input 413, unsupported content type 415, and a request/database deadline 503. A response may be lost after creation commits: retry with the original idempotency key. Cancellation invalidates the existing claim and clears lease ownership; the worker persistence operations check that ownership before renewal or completion. The actual worker loop comes in Task 4.
 
 Task 2 verification and pending database checks: [docs/task-2-verification.md](docs/task-2-verification.md).
+
+
+## Worker persistence operations (Task 3)
+
+`PostgresStore` now implements `jobs.Queue` for the upcoming worker runtime:
+
+| Method | Behavior |
+| --- | --- |
+| `ClaimNext(ctx, workerID)` | Atomically claims the oldest unlocked queued job; returns nil when no work is available |
+| `Renew(ctx, claim)` | Extends a current, unexpired claim |
+| `Finish(ctx, claim, result)` | Inserts one effect and commits success in the same transaction |
+| `Fail(ctx, claim, reason)` | Records a terminal execution failure with no effect |
+| `RecoverExpired(ctx, limit)` | Requeues expired jobs or fails them at the attempt limit; handles 1–1000 rows per call |
+
+The default lease is 10 seconds and jobs allow five attempts. `NewStoreWithLease` accepts a custom positive lease from one microsecond through 24 hours for worker configuration. Renewal does not update the caller's job snapshot; the database remains authoritative.
+
+Claims use `FOR UPDATE SKIP LOCKED`, giving approximate FCFS claim order while allowing workers to proceed past locked jobs. A claim version fences stale attempts, including when a restarted worker reuses the same ID. Renewal/completion/failure lock the job row, check ownership, then check actual PostgreSQL time after any lock wait. Once validated, the lock reserves the transition until commit or rollback; keep these transactions short. Recovery and cancellation acquire that same row lock.
+
+Repeated completion returns `ErrOwnershipLost`; it cannot create another effect. An unexpected pre-existing effect returns `ErrInvariantViolation`. `ErrCommitUnknown` means a disconnected commit may have reached PostgreSQL: use a fresh connection/context to read the job and compare its persisted status and claim version before retrying. Do not report success solely from that error or repeat an external side effect. The exactly-once effect guarantee is scoped to the simulated database row.
+
+To exercise concurrency against a disposable PostgreSQL database:
+
+```sh
+TEST_DATABASE_URL='postgres://soup:soup@localhost:5432/soup_test?sslmode=disable' \
+  go test -race -count=10 ./internal/jobs
+```
+
+Test coverage and environment limits: [docs/task-3-verification.md](docs/task-3-verification.md). Design references: [PostgreSQL row locking](https://www.postgresql.org/docs/18/sql-select.html#SQL-FOR-UPDATE-SHARE), [database clock functions](https://www.postgresql.org/docs/18/functions-datetime.html#FUNCTIONS-DATETIME-CURRENT).

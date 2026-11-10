@@ -13,9 +13,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PostgresStore struct{ pool *pgxpool.Pool }
+type PostgresStore struct {
+	pool  *pgxpool.Pool
+	lease time.Duration
+}
 
-func NewStore(pool *pgxpool.Pool) *PostgresStore { return &PostgresStore{pool: pool} }
+func NewStore(pool *pgxpool.Pool) *PostgresStore {
+	return &PostgresStore{pool: pool, lease: DefaultLeaseDuration}
+}
 
 var _ Store = (*PostgresStore)(nil)
 
@@ -138,11 +143,7 @@ func (s *PostgresStore) Cancel(ctx context.Context, id string) (Job, error) {
 	if err != nil {
 		return Job{}, err
 	}
-	defer func() {
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-		_ = tx.Rollback(cleanupCtx)
-	}()
+	defer rollback(tx)
 	j, err := scanJob(tx.QueryRow(ctx, `SELECT `+columns+` FROM jobs WHERE id=$1 FOR UPDATE`, id))
 	if err != nil {
 		return Job{}, err

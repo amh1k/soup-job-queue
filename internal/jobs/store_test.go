@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/amh1k/soup-job-queue/internal/httpapi"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/amh1k/soup-job-queue/internal/httpapi"
 	"github.com/amh1k/soup-job-queue/internal/jobs"
 	"github.com/amh1k/soup-job-queue/migrations"
 	"github.com/jackc/pgx/v5"
@@ -50,6 +50,7 @@ func testStore(t *testing.T) (*jobs.PostgresStore, *pgxpool.Pool) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	cfg.MaxConns = 16 // Allow all eight competing claimers to acquire connections.
 	cfg.ConnConfig.RuntimeParams["search_path"] = schema
 	cfg.ConnConfig.ConnectTimeout = 3 * time.Second
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)

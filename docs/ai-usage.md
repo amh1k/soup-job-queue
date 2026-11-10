@@ -6,3 +6,6 @@ Codex's checks and environment limitations are recorded in `task-1-verification.
 
 
 For Task 2, Codex implemented the PostgreSQL job store, HTTP job endpoints, cursor validation, request normalization, cancellation, unit/integration tests, and documentation. Verification and the unrun database integration checks are recorded in `task-2-verification.md`. The user has not yet recorded independent verification of these changes.
+
+
+For Task 3, Codex implemented worker persistence methods, claim-version fencing, database-clock lease validation, atomic effect/completion, recovery, commit-uncertainty reporting, and targeted tests. Source review used the PostgreSQL row-locking and date/time documentation linked in the README. Executed checks and unverified concurrency cases are recorded in `task-3-verification.md`; no independent human verification is claimed.

@@ -22,6 +22,8 @@ var (
 	ErrTerminal            = errors.New("job already completed")
 	ErrOwnershipLost       = errors.New("job claim is no longer current")
 	ErrInvalidInput        = errors.New("invalid input")
+	ErrInvariantViolation  = errors.New("job invariant violated")
+	ErrCommitUnknown       = errors.New("commit outcome unknown; inspect persisted state before retrying")
 )
 
 // IDs are UUID strings, validated at the HTTP boundary in the job API task.
@@ -73,3 +75,23 @@ type Store interface {
 	List(ctx context.Context, limit int, cursor *Cursor, status Status) (Page, error)
 	Cancel(ctx context.Context, id string) (Job, error)
 }
+
+// Result is the simulated execution output stored as the job's single effect.
+type Result struct {
+	Message string `json:"message"`
+}
+type Failure struct {
+	Code    string
+	Message string
+}
+
+// Queue is the persistence interface used by the future worker runtime.
+type Queue interface {
+	ClaimNext(context.Context, string) (*Claim, error)
+	Renew(context.Context, Claim) error
+	Finish(context.Context, Claim, Result) error
+	Fail(context.Context, Claim, Failure) error
+	RecoverExpired(context.Context, int) (int, error)
+}
+
+var _ Queue = (*PostgresStore)(nil)
