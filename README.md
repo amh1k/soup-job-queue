@@ -1,10 +1,10 @@
 # soup-job-queue
 
-A training-job queue backed by PostgreSQL. See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for the design and remaining tasks.
+A training-job queue backed by PostgreSQL.
 
 ## Current implementation
 
-Task 1 provides the schema, atomic checksum-verified migrations, shared job types and store interface, environment configuration, and API health checks. Job endpoints and workers come in subsequent tasks.
+Tasks 1–2 provide the schema, atomic checksum-verified migrations, configuration, health checks, and the job API. Jobs stay queued until workers are implemented in Tasks 3–4.
 
 ## Start with Docker Compose
 
@@ -48,11 +48,12 @@ The API starts even if the database is unavailable; readiness reports that condi
 ```sh
 make build
 make test
+go test -race ./...
 make vet
 TEST_DATABASE_URL='postgres://soup:soup@localhost:5432/soup_test?sslmode=disable' make test-integration
 ```
 
-Integration tests require a **disposable database** whose user can create schemas. Each test creates and drops its own schema. They cover readiness before/after migrations, data preservation on reruns, migration checksums, constraints, and indexes. `go test ./...` skips integration tests if `TEST_DATABASE_URL` is absent; the explicit Make target refuses to run without it.
+Integration tests require a **disposable database** whose user can create schemas. Each test creates and drops its own schema. They cover readiness before/after migrations, migration reruns, checksums, constraints, indexes, concurrent idempotent creation, equal-timestamp pagination, cancellation, and replay after a lost response. `go test ./...` skips integration tests if `TEST_DATABASE_URL` is absent; the explicit Make target refuses to run without it.
 
 To check container persistence, insert a temporary job, run `docker compose down`, start again, and query it:
 
@@ -68,3 +69,37 @@ Wait for the database to become healthy before the final query. The expected res
 Verification performed in the development sandbox is recorded in [docs/task-1-verification.md](docs/task-1-verification.md). AI assistance is recorded in [docs/ai-usage.md](docs/ai-usage.md).
 
 Implementation references: [PostgreSQL constraints](https://www.postgresql.org/docs/18/ddl-constraints.html), [pgx connection pools](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool).
+
+## Job API
+
+| Endpoint | Result |
+| --- | --- |
+| `POST /jobs` | 201 for a new job; 200 for a matching retry; 409 if the same key has different input |
+| `GET /jobs/{id}` | Job details, or 404 |
+| `GET /jobs?limit=50&status=queued&cursor=...` | `jobs` array and `next_cursor` (null on the final page) |
+| `POST /jobs/{id}/cancel` | 200 for queued/running/already-cancelled jobs; 409 for succeeded/failed jobs; 404 if absent |
+
+Create a job:
+
+```sh
+curl -i http://localhost:8080/jobs \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: example-training-1' \
+  -d '{"duration_ms":100,"simulate_failure":false}'
+```
+
+Repeat that request with the same key to recover the same job. `duration_ms` is required and must be an integer from 1 to 5000. `simulate_failure` defaults to false; omitted and explicit false are equivalent on retries. Keys must contain 1–128 bytes and cannot be entirely whitespace. Input bodies are limited to 16 KiB; unknown fields and multiple JSON values are rejected.
+
+Use the returned UUID in these requests:
+
+```sh
+curl http://localhost:8080/jobs/JOB_UUID
+curl 'http://localhost:8080/jobs?limit=10&status=queued'
+curl -X POST http://localhost:8080/jobs/JOB_UUID/cancel
+```
+
+Pass `next_cursor` unchanged as the next request's `cursor`, with the same status filter. Omit `status` to list all states. Limits range from 1 to 100. Jobs are ordered by creation timestamp and UUID. Pagination traverses live data; concurrent status changes can affect filtered results between requests. Cursors are opaque navigation values, not security credentials.
+
+Errors use `{"error":{"code":"...","message":"..."}}`. Invalid input returns 400, oversized input 413, unsupported content type 415, and a request/database deadline 503. A response may be lost after creation commits: retry with the original idempotency key. Cancellation invalidates the existing claim and clears lease ownership; worker cooperation and completion races will be implemented in Task 3.
+
+Task 2 verification and pending database checks: [docs/task-2-verification.md](docs/task-2-verification.md).

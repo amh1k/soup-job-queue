@@ -3,3 +3,4 @@
 .env.*
 !.env.example
 coverage.out
+/IMPLEMENTATION_PLAN.md

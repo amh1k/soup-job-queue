@@ -54,9 +54,9 @@ type Claim struct {
 }
 
 type Cursor struct {
-	CreatedAt time.Time
-	ID        string
-	Status    Status
+	CreatedAt time.Time `json:"created_at"`
+	ID        string    `json:"id"`
+	Status    Status    `json:"status"`
 }
 
 type Page struct {
@@ -64,7 +64,7 @@ type Page struct {
 	NextCursor *Cursor
 }
 
-// Store defines the job API persistence boundary; implementation follows in Task 2.
+// Store defines the job API persistence boundary.
 // Create returns newlyCreated=true only for the first insertion.
 // List uses a nil cursor for the first page and an empty status for all states.
 type Store interface {

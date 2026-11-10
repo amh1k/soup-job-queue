@@ -21,6 +21,7 @@ func NewHandler(ready func(context.Context) error, timeout time.Duration) http.H
 		}
 		writeStatus(w, http.StatusOK, "ready")
 	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { apiError(w, 404, "not_found", "Route not found") })
 	return mux
 }
 

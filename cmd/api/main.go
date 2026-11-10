@@ -13,6 +13,7 @@ import (
 	"github.com/amh1k/soup-job-queue/internal/config"
 	"github.com/amh1k/soup-job-queue/internal/database"
 	"github.com/amh1k/soup-job-queue/internal/httpapi"
+	"github.com/amh1k/soup-job-queue/internal/jobs"
 	"github.com/amh1k/soup-job-queue/migrations"
 )
 
@@ -38,7 +39,7 @@ func run() error {
 	defer pool.Close()
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewHandler(func(ctx context.Context) error { return migrations.Check(ctx, pool) }, cfg.DBTimeout),
+		Handler:           httpapi.NewAPIHandler(jobs.NewStore(pool), func(ctx context.Context) error { return migrations.Check(ctx, pool) }, cfg.DBTimeout),
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second,
 		WriteTimeout: cfg.DBTimeout + 10*time.Second, IdleTimeout: 60 * time.Second,
 		MaxHeaderBytes: 16 << 10,

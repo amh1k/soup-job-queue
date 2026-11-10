@@ -9,7 +9,7 @@ test:
 
 test-integration:
 	@test -n "$$TEST_DATABASE_URL" || (echo 'TEST_DATABASE_URL must point to a disposable PostgreSQL database' >&2; exit 1)
-	go test -count=1 -v ./migrations
+	go test -count=1 -v ./migrations ./internal/jobs
 
 vet:
 	go vet ./...
