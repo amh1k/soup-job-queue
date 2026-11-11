@@ -4,3 +4,6 @@
 !.env.example
 coverage.out
 /IMPLEMENTATION_PLAN.md
+# Generated experiment inputs; recreated locally from the seed and options.
+/results/**/manifest.json
+/results/**/operations.json

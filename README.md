@@ -1,10 +1,216 @@
 # soup-job-queue
 
-A training-job queue backed by PostgreSQL.
+A durable training-job queue built with Go and PostgreSQL. Clients submit and cancel jobs through an HTTP API; independent worker processes claim and execute them concurrently.
 
-## Current implementation
+## Implementation and verification status
 
-The service, four-worker deployment, chaos harness, load driver, independent audit, and delivery documentation are implemented. Execution is simulated with a cancellable timer and a database effect row. Full database/chaos/load verification remains pending; see the [evidence index](docs/evidence.md) and [DON'T SHIP verdict](docs/verdict.md).
+The API, worker runtime, four-worker Compose deployment, chaos harness, load driver, independent audit, and delivery documents are implemented. Training is simulated with a timer; the committed result is a row in `job_effects`.
+
+**Full runtime verification is pending.** Earlier unit/race tests, builds, and vet checks passed; nineteen real PostgreSQL integration tests skipped. Three chaos attempts and two load attempts failed before their workloads started. A later rerun was interrupted, and Docker daemon access was blocked in that session. These results do not establish correctness under chaos or capacity at 100 RPS. See the [evidence index](docs/evidence.md) and [current DON'T SHIP verdict](docs/verdict.md).
+
+## Reading guide
+
+- [Architecture](#architecture): API, workers, PostgreSQL, and process boundaries.
+- [Job lifecycle](#job-lifecycle): submission, claims, execution, and completion.
+- [Leases and crash recovery](#leases-and-crash-recovery): heartbeats and stale attempts.
+- [Transactions and cancellation](#transactions-and-cancellation): consistent state and effects.
+- [Inside the chaos harness](#inside-the-chaos-harness): goroutines, processes, signals, and audit.
+- [Code map](#code-map): where each responsibility lives.
+- [Start with Docker Compose](#start-with-docker-compose), [Job API](#job-api), and [Run workers](#run-workers).
+- [Verify](#verify) and [Chaos harness and load evaluation](#chaos-harness-and-load-evaluation).
+
+## Architecture
+
+The public API manages **jobs**. Workers are execution processes started by Compose or the experiment supervisor; there is no worker CRUD API. A client does not assign a job to a particular worker. Available workers compete to claim queued jobs from PostgreSQL.
+
+```mermaid
+flowchart LR
+    Client["Client / HTTP caller"] -->|"create, get, list, cancel"| API["API process"]
+    API --> Store["PostgresStore"]
+    Store --> DB[("PostgreSQL: jobs + job_effects")]
+    subgraph Workers["Independent worker processes"]
+        W1["Worker 1"]
+        W2["Worker 2"]
+        WN["Worker 3 ... N"]
+    end
+    W1 <-->|"claim, renew, recover, finish"| DB
+    W2 <-->|"claim, renew, recover, finish"| DB
+    WN <-->|"claim, renew, recover, finish"| DB
+    Migrate["Migration program: runs then exits"] --> DB
+```
+
+Normal Compose startup launches PostgreSQL, waits for it to become healthy, runs migrations, then starts the API and four workers. The experiment harness starts eight workers by default in a separate schema.
+
+### Where is the queue? Why PostgreSQL instead of Redis?
+
+The `jobs` table is both durable job storage and the queue. Rows with `status = 'queued'` are available work; workers poll for them. A partial index on `(created_at, id)` supports choosing queued work. There is no separate in-memory queue.
+
+This keeps job creation, ownership, recovery, cancellation, and committed effects in one transactional system. Redis could provide a notification or delivery layer, but keeping Redis delivery consistent with PostgreSQL would require another protocol, such as a transactional outbox. PostgreSQL avoids that extra coordination for this scope.
+
+Database polling still costs queries, connections, and row locks. Workers add jitter to idle polling and back off after claim errors. Capacity must be measured; this design is not evidence that the database can sustain any particular workload.
+
+### Processes, goroutines, and communication
+
+| Component | Runs as | Responsibility |
+| --- | --- | --- |
+| API | One process | Serve HTTP requests through `httpapi` and the store |
+| Each worker | Separate process | Execute at most one active job; run a recovery goroutine alongside the claim/execution loop |
+| Migrations | Separate short-lived process | Apply/check migration history, then exit |
+| Chaos harness | One process | Host the experiment API, generate requests, supervise workers, collect evidence |
+| Experiment supervisor | Goroutine inside the harness | Start workers, observe exits, replace planned kills |
+
+Separate worker processes let the harness kill one worker with `SIGKILL` while the others continue. Go goroutines share their process: killing a process would stop every goroutine inside it. Workers coordinate through PostgreSQL. The API does not send assignments directly to worker processes.
+
+## Job lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> queued: New idempotency key
+    queued --> running: Atomic claim
+    queued --> cancelled: Cancellation
+    running --> succeeded: Effect and success commit together
+    running --> failed: Simulated execution failure
+    running --> cancelled: Cancellation wins the row lock
+    running --> queued: Expired lease, attempts remain
+    running --> failed: Expired lease, attempt limit reached
+    succeeded --> [*]
+    failed --> [*]
+    cancelled --> [*]
+```
+
+1. The client sends `POST /jobs` with an `Idempotency-Key` and execution input.
+2. The API validates the request and asks `PostgresStore` to create a queued job. A database uniqueness constraint prevents duplicate keys. A matching retry returns the same job; different input with that key returns 409.
+3. A worker atomically selects and claims an available job, changing it to running and recording its owner, lease, attempt count, and claim version.
+4. The claim transaction ends. The worker simulates execution with a timer and renews its lease while working. **No database transaction remains open during the simulated training.**
+5. Successful execution inserts an effect and marks the job succeeded in one short transaction. Simulated execution failure records a failed job with no effect. Infrastructure errors abandon the attempt for lease recovery.
+6. Clients retrieve status using the job API. Jobs are not pushed back to clients when they finish.
+
+### Concurrency and approximate FCFS
+
+Claims order queued jobs by `(created_at, id)` and use `FOR UPDATE SKIP LOCKED` inside an atomic update. If worker A locks a candidate, worker B skips it and can claim another job. The committed update makes the first job running, so subsequent claims no longer select it.
+
+This provides **approximate first come, first served claim order**. A locked older job can be skipped; execution duration and retries also mean completion order differs from creation order. Recovery preserves the original creation timestamp. There are no configurable priority or scheduling policies.
+
+## Leases and crash recovery
+
+A lease is a deadline for the current worker's ownership. The default is **10 seconds**, renewed by a heartbeat every **2 seconds**. Each worker also scans for expired leases every **1 second**, so recovery continues while other workers execute jobs. All lease decisions use PostgreSQL time.
+
+A lease does not prevent a crash. It makes abandoned work eligible for recovery without requiring the database to know whether the worker process is alive.
+
+```mermaid
+sequenceDiagram
+    participant A as Worker A
+    participant DB as PostgreSQL
+    participant B as Surviving worker B
+    A->>DB: Claim job; owner A, version 1, lease deadline
+    DB-->>A: Claim committed
+    Note over A: Process killed or stops responding
+    Note over DB: Job remains running until lease expires
+    B->>DB: Recovery scan locks expired job
+    DB->>DB: Clear ownership; increment version; requeue
+    B->>DB: Claim queued job with a newer version
+    DB-->>B: New claim committed
+    B->>DB: Finish with current owner and version
+    DB-->>B: Effect and success committed
+```
+
+Recovery requeues expired jobs while attempts remain. At the default limit of five claims, an expired attempt becomes failed with `attempts_exhausted`. A replacement process may claim any eligible job; it does not automatically inherit the killed worker's job.
+
+### Why also use a claim version?
+
+The claim operation prevents two workers from newly claiming the same queued row. A **claim version** solves a later problem: an old execution attempt may still try to write after its ownership has expired. For example, A pauses, its lease expires, B recovers and claims the job, then A resumes with an old result.
+
+A does not need to reclaim the job to cause trouble; it already holds a previous claim in memory. Renewal, completion, and failure therefore validate all of these under a row lock:
+
+- The job is still running.
+- The stored worker ID matches the caller.
+- The stored claim version matches the caller's attempt.
+- The lease is still valid according to the actual database clock after acquiring the lock.
+
+Recovery and cancellation invalidate old claims by incrementing the version. Reusing a worker ID after restart cannot make an old claim current again. The version is a fencing number for a particular ownership period, not an authentication secret.
+
+## Transactions and cancellation
+
+### Why have a `job_effects` table?
+
+Execution attempts and committed results are different facts. A worker may simulate the same job again after a crash, but a successful job must have exactly one committed effect. `job_effects` makes that effect countable and ties it to the claim version that committed it. Its primary key allows at most one effect per job.
+
+```mermaid
+flowchart TD
+    Begin["BEGIN: short completion transaction"] --> Lock["Lock job row"]
+    Lock --> Validate{"Current owner, version, running state, valid lease?"}
+    Validate -->|No| Reject["Reject attempt and roll back"]
+    Validate -->|Yes| Effect["Insert unique job_effects row"]
+    Effect --> Success["Mark succeeded; clear owner and lease"]
+    Success --> Commit["COMMIT both changes"]
+```
+
+If either write fails, the transaction rolls both back. A process dying before commit leaves neither change committed; dying after commit leaves both. The guarantee is **at-least-once execution attempts, with exactly one database effect for a successful job**. Failed and cancelled jobs have zero effects. External actions such as email, file uploads, or remote payments would need their own idempotency mechanism.
+
+If the connection fails during commit, the worker cannot infer whether PostgreSQL committed. It makes a fresh bounded read and compares status and claim version; it never blindly repeats the effect.
+
+### What if cancellation races with completion?
+
+Cancellation and completion lock the same job row. If cancellation wins, it marks the job cancelled, clears ownership, and invalidates the claim. The worker's later completion is rejected. If completion wins, the committed job is succeeded and cancellation returns 409. Repeated cancellation of a cancelled job returns 200.
+
+Cancellation is a database transition. There is no direct signal from the API to the worker process. The worker discovers lost ownership on its next heartbeat or finalization and abandons that attempt. Its simulated timer may briefly continue, but the old claim cannot commit an effect.
+
+## Inside the chaos harness
+
+The harness exercises the actual HTTP handler and PostgreSQL store. Its API server lives inside the harness process; its workers are separate child processes. This tests the job protocol, while Docker startup and deployment packaging need their own checks.
+
+```mermaid
+flowchart TB
+    subgraph Harness["One chaos harness process"]
+        Create["32 submission goroutines"]
+        Retry["Duplicate submission goroutine"]
+        Cancel["Cancellation goroutine"]
+        Kill["Kill ticker goroutine: every 2s"]
+        Supervisor["Supervisor goroutine"]
+        Wait["cmd.Wait goroutines"]
+        HTTP["Experiment HTTP API"]
+        Audit["Independent final SQL audit"]
+        Create --> HTTP
+        Retry --> HTTP
+        Cancel --> HTTP
+        Kill -->|"call killRandom"| Supervisor
+        Wait -->|"exit notifications: Go channel"| Supervisor
+    end
+    Supervisor -->|"start / SIGKILL through OS"| Children["8 separate worker processes"]
+    Children -.->|"OS reports process exit"| Wait
+    HTTP --> DB[("Fresh PostgreSQL schema per run")]
+    Children <-->|"claims, heartbeats, recovery, results"| DB
+    Audit -->|"read persisted facts"| DB
+```
+
+The kill ticker asks the supervisor to choose and kill a live worker. The supervisor records the planned kill and sends the OS signal. A goroutine waiting on `cmd.Wait()` receives the process exit status and sends it through an **in-process Go channel** to the supervisor. Workers do not send messages through that channel. Planned kills get replacements with new worker identities; unexpected exits fail the experiment.
+
+The duplicate loop resends manifest keys with identical input and checks that each key returns the same job ID. The cancellation loop targets accepted jobs and records confirmed cancellations. These loops overlap the initial submissions and worker kills; the default fault period lasts at least 30 seconds and until initial submissions finish.
+
+After fault injection stops, the harness restores its worker count, retries uncertain creations with their original keys, and lets the queue drain. It stops workers before auditing PostgreSQL directly, independently of the store methods being tested. The audit checks every expected key and payload, terminal states, ownership cleanup, attempt bounds, cancellation acknowledgements, and effect counts and versions. Missing fault coverage, timeouts, workload errors, or audit violations fail the run. Logs and summaries are retained for both successful and failed attempts.
+
+The supervisor belongs to the experiments. During normal Compose operation, Docker's `restart: unless-stopped` policy restarts worker containers, and surviving workers recover expired jobs through PostgreSQL.
+
+## Code map
+
+| Path | What to read it for |
+| --- | --- |
+| [`cmd/api`](cmd/api) | API entry point: configuration, logging, database pool, HTTP server, shutdown |
+| [`cmd/migrate`](cmd/migrate) | Independent migration program |
+| [`cmd/worker`](cmd/worker) | Independent worker entry point |
+| [`internal/httpapi`](internal/httpapi) | Routes, HTTP validation, JSON responses, status/error mapping |
+| [`internal/jobs/model.go`](internal/jobs/model.go) | Job types and store/queue interfaces |
+| [`internal/jobs/store.go`](internal/jobs/store.go) | PostgreSQL create/get/list/cancel implementation |
+| [`internal/jobs/claims.go`](internal/jobs/claims.go) | Atomic claims, leases, fencing, completion transactions, recovery |
+| [`internal/worker/worker.go`](internal/worker/worker.go) | Claim/execution loop, heartbeat handling, separate recovery loop |
+| [`migrations`](migrations) | Tables, constraints, indexes, migration runner |
+| [`internal/experiment/chaos.go`](internal/experiment/chaos.go) | Concurrent submissions, retries, cancellations, and kill timing |
+| [`internal/experiment/supervisor.go`](internal/experiment/supervisor.go) | Child process lifecycle and exit channel |
+| [`internal/experiment/session.go`](internal/experiment/session.go) | Isolated schema, experiment API, monitoring, drain, audit setup |
+| [`internal/audit`](internal/audit) | Independent checks of persisted jobs and effects |
+| [`cmd/load`](cmd/load), [`internal/experiment/load.go`](internal/experiment/load.go) | Scheduled load generation and performance reports |
+
+`Store` defines the operations its callers need; `PostgresStore` implements those operations using PostgreSQL through pgx. `httpapi` translates HTTP into store calls, while the worker uses queue operations directly. The `http.Server` handler is the router returned by `httpapi.NewAPIHandler`. Structured `slog` output provides request and worker lifecycle logs.
 
 ## Start with Docker Compose
 
@@ -40,6 +246,8 @@ go run ./cmd/api
 | `DB_TIMEOUT` | `3s` | Connection and readiness query timeout |
 | `DB_MAX_CONNS` | `10` | Maximum database connections per process |
 | `SHUTDOWN_TIMEOUT` | `10s` | Time allowed for API requests to finish on shutdown |
+
+In another terminal, start a worker with `go run ./cmd/worker` (each invocation starts one process). The API alone does not execute jobs.
 
 The API starts even if the database is unavailable; readiness reports that condition. Migrations are an explicit command and do not run inside the API process. Migration commands have a one-minute deadline, serialize using a transaction advisory lock, and reject changed or unknown applied migrations. Add a new numbered SQL file instead of editing an applied one.
 
@@ -98,14 +306,14 @@ curl 'http://localhost:8080/jobs?limit=10&status=queued'
 curl -X POST http://localhost:8080/jobs/JOB_UUID/cancel
 ```
 
-Pass `next_cursor` unchanged as the next request's `cursor`, with the same status filter. Omit `status` to list all states. Limits range from 1 to 100. Jobs are ordered by creation timestamp and UUID. Pagination traverses live data; concurrent status changes can affect filtered results between requests. Cursors are opaque navigation values, not security credentials.
+Pass `next_cursor` unchanged as the next request's `cursor`, with the same status filter. Omit `status` to list all states. Limits range from 1 to 100. Jobs are ordered by creation timestamp and UUID. The cursor identifies the last returned `(created_at, id)` pair and status filter. The next query selects rows after that pair and fetches `limit + 1` rows to determine whether another page exists, avoiding an increasing OFFSET. Pagination traverses live data; concurrent status changes can affect filtered results between requests. Cursors are opaque navigation values, not security credentials.
 
 Errors use `{"error":{"code":"...","message":"..."}}`. Invalid input returns 400, oversized input 413, unsupported content type 415, and a request/database deadline 503. A response may be lost after creation commits: retry with the original idempotency key. Cancellation invalidates the existing claim and clears lease ownership; the worker persistence operations check that ownership before renewal or completion. Workers detect lost ownership on heartbeat or finalization and abandon that attempt.
 
 Task 2 verification and pending database checks: [docs/task-2-verification.md](docs/task-2-verification.md).
 
 
-## Worker persistence operations (Task 3)
+## Worker persistence operations
 
 `PostgresStore` now implements `jobs.Queue` for the worker runtime:
 
@@ -133,7 +341,7 @@ TEST_DATABASE_URL='postgres://soup:soup@localhost:5432/soup_test?sslmode=disable
 Test coverage and environment limits: [docs/task-3-verification.md](docs/task-3-verification.md). Design references: [PostgreSQL row locking](https://www.postgresql.org/docs/18/sql-select.html#SQL-FOR-UPDATE-SHARE), [database clock functions](https://www.postgresql.org/docs/18/functions-datetime.html#FUNCTIONS-DATETIME-CURRENT).
 
 
-## Run workers (Task 4)
+## Run workers
 
 ```sh
 # Compose starts all four workers automatically.
@@ -166,7 +374,7 @@ Worker unit tests are part of `make test`. `make test-integration` also includes
 References: [Go signal contexts](https://pkg.go.dev/os/signal#NotifyContext), [Compose configuration fragments](https://docs.docker.com/reference/compose-file/fragments/).
 
 
-## Chaos harness and load evaluation (Tasks 5–6)
+## Chaos harness and load evaluation
 
 Run these commands from the repository root with an accessible PostgreSQL database. The experiment user must be able to create schemas. Each invocation creates a fresh schema, applies migrations, starts the real API handler on an ephemeral local HTTP port, and supervises its own worker processes. It never clears the normal application's tables. Failed and successful experiment schemas remain available for diagnosis; remove a recorded experiment schema manually only after preserving the evidence you need.
 
