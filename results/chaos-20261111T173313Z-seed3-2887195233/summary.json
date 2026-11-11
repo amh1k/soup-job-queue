@@ -1,0 +1,42 @@
+{
+  "kind": "chaos",
+  "Started": "2026-11-11T17:33:13.327061707Z",
+  "Ended": "2026-11-11T17:34:26.453620423Z",
+  "success": true,
+  "workload_started": true,
+  "settings": {
+    "output": "results",
+    "worker_binary": "/app/worker",
+    "seed": 3,
+    "workers": 8,
+    "jobs": 10000,
+    "kill_interval": 2000000000,
+    "fault_duration": 30000000000,
+    "drain_timeout": 300000000000,
+    "timeout": 900000000000,
+    "rps": 100,
+    "warmup": 30000000000,
+    "duration": 300000000000,
+    "mode": "mixed",
+    "max_inflight": 256
+  },
+  "schema": "experiment_1794418393408244856",
+  "Kills": 15,
+  "UnexpectedWorkerExits": 0,
+  "ExpectedJobs": 10000,
+  "AcceptedJobs": 10000,
+  "AcceptedCancellations": 1953,
+  "audit": {
+    "valid": true,
+    "Expected": 10000,
+    "Found": 10000,
+    "States": {
+      "cancelled": 1953,
+      "failed": 150,
+      "succeeded": 7897
+    },
+    "Attempts": 8068,
+    "Exhausted": 0,
+    "violations": []
+  }
+}

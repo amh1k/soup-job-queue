@@ -1,6 +1,34 @@
 # Evidence index
 
-## Completed Docker experiments — 2026-11-11
+## Latest verified corrected-harness runs — 2026-11-11, 17:30–17:48 UTC
+
+All five runs contain executable hashes and a build source manifest. Every recorded source checksum matches the current corresponding source file. Worker-start events also identify child executable hashes. This supersedes the earlier requirement to rerun the corrected harness; historical runs and failures below remain unchanged.
+
+| Run | Outcome | Results | Summary | Raw archive |
+| --- | --- | --- | --- | --- |
+| Chaos seed 1 | PASS | 14 kills; 8267 succeeded / 161 failed / 1572 cancelled; audit passed | [summary](../results/chaos-20261111T173028Z-seed1-4203661562/summary.json) | [archive](../results/archives/chaos-20261111T173028Z-seed1-4203661562.tar.gz) |
+| Chaos seed 2 | PASS | 15 kills; 7826 succeeded / 165 failed / 2009 cancelled; audit passed | [summary](../results/chaos-20261111T173155Z-seed2-1105843608/summary.json) | [archive](../results/archives/chaos-20261111T173155Z-seed2-1105843608.tar.gz) |
+| Chaos seed 3 | PASS | 15 kills; 7897 succeeded / 150 failed / 1953 cancelled; audit passed | [summary](../results/chaos-20261111T173313Z-seed3-2887195233/summary.json) | [archive](../results/archives/chaos-20261111T173313Z-seed3-2887195233.tar.gz) |
+| Load mixed | PASS | 100 RPS; p95 9.91 ms; 44.92 job completions/s; audit passed | [summary](../results/load-20261111T173432Z-seed1-1407469591/summary.json) | [archive](../results/archives/load-20261111T173432Z-seed1-1407469591.tar.gz) |
+| Load create | FAIL: backlog growth | 100 RPS; p95 16.12 ms; 68.37 job completions/s; audit passed | [summary](../results/load-20261111T174011Z-seed1-2817258392/summary.json) | [archive](../results/archives/load-20261111T174011Z-seed1-2817258392.tar.gz) |
+
+Each corrected chaos run accepted all 10,000 jobs and reported zero audit violations, zero unexpected worker exits, and zero attempt-limit exhaustions. There were **44 deliberate worker kills** across these three runs. The failed job counts are configured execution failures, not harness failures.
+
+| Latest load metric | Mixed | Create only |
+| --- | --- | --- |
+| Measured requests | 30,000 | 30,000 |
+| Successful HTTP RPS | 100 | 100 |
+| Errors / drops | 0 / 0 | 0 / 0 |
+| Response p95 / p99 | 9.91 / 65.84 ms | 16.12 / 56.47 ms |
+| Job completions/second | 44.92 | 68.37 |
+| First / last backlog | 0 / 2 | 1,100 / 10,559 |
+| Backlog growth/second | 0.009 | 31.61 |
+| Final audit | Passed | Passed |
+
+Mixed found all 14,882 jobs: 14,871 succeeded and 11 cancelled. Create-only eventually completed all 33,032 jobs after draining; its capacity failure remains a failure. Across all batches: **nine completed chaos runs, 128 planned kills, three passing mixed-load runs, three create-only capacity failures, and five earlier preflight failures** (20 workload CLI invocations total). Deployment verification attempts are recorded separately below.
+
+
+## Initial Docker experiments — 2026-11-11
 
 The user ran these experiments locally through Docker Compose; Codex inspected their saved reports. All used eight child worker processes and isolated PostgreSQL schemas. These are five completed workloads: three chaos passes, one mixed-load pass, and one create-load capacity failure. Earlier failed preflight attempts remain recorded below.
 
@@ -73,11 +101,11 @@ Earlier sandbox-only [Go race-test output](../results/checks/rerun-20261111T1405
 
 Earlier [corrected build/vet](../results/checks/build-vet-corrected.log), [unit/race checks](../results/checks/tests-corrected.log), and [single-user SQL smoke checks](../results/checks/sql-smoke.log) passed. The preceding compilation failures remain in [build log](../results/checks/build-vet-final.log) and [test log](../results/checks/tests-final-v2.log).
 
-Still unverified: normal four-worker deployment capacity at 100 RPS, dedicated production topology/resource measurements, a real network interruption during commit, database failover/power loss/clock jumps, and full chaos/load reruns of the corrected harness. This index consolidates execution status and limitations for the submission.
+Still unverified: normal four-worker deployment capacity at 100 RPS, dedicated production topology/resource measurements, a real network interruption during commit, database failover/power loss/clock jumps, and capacity improvements beyond the measured eight-worker limit. This index consolidates execution status and limitations for the submission.
 
 ## Harness corrections after these measurements
 
-The chaos cancellation loop now fails unexpected cancellation responses while tolerating phase shutdown. Final success reporting now follows raw evidence sync/close; JSON files are written atomically. New images carry source checksums, metadata identifies the harness executable, and worker-start events identify the worker executable. `make evidence` makes raw-output packaging repeatable. These changes do not retroactively alter or reclassify the recorded workload runs; fresh runs of rebuilt images are needed to verify the corrected harness under PostgreSQL.
+The chaos cancellation loop now fails unexpected cancellation responses while tolerating phase shutdown. Final success reporting now follows raw evidence sync/close; JSON files are written atomically. New images carry source checksums, metadata identifies the harness executable, and worker-start events identify the worker executable. `make evidence` makes raw-output packaging repeatable. These changes do not retroactively alter or reclassify the recorded workload runs; the latest fingerprinted runs above verify this corrected harness under PostgreSQL.
 
 Two additional database lifecycle tests now cover persisted heartbeat renewal across lease periods and a SIGSTOP/SIGCONT worker returning after reassignment. `make verify-deployment` runs the full PostgreSQL suite and checks the real Compose deployment in a disposable project. The user subsequently executed these checks successfully in the Docker run below; the earlier sandbox skips remain historical records. Existing load capacity results and the verdict are unchanged.
 
@@ -90,3 +118,17 @@ The user ran `make verify-deployment`. [Summary](../results/checks/soup-verify-c
 This run exercised the targeted database suite, including concurrent claims, stale-claim fencing, cancellation races, effect rollback, corruption detection, and SIGKILL recovery. The new long-running heartbeat test passed in 3.78 seconds; the paused/resumed child-process test passed in 4.61 seconds.
 
 The ordinary four-worker Compose deployment became ready, executed a persistence job, stopped with `down` while retaining its volume, and started again. The API returned an identical persisted job before and after restart, and PostgreSQL still contained exactly one effect. Cleanup of the disposable project's containers and volume also succeeded. No capacity measurement was performed by this verification command. The earlier permission-denied attempt above remains a failed preflight record.
+
+## Additional runs — 2026-11-11, 16:58–17:24 UTC
+
+These five additional workloads completed, but their metadata has neither `executable_sha256` nor `build_source_manifest`. The corrected harness always records the executable hash. These results therefore do not establish execution of the corrected image; they are retained as additional older-image measurements. Rebuild or use `docker compose run --build` before repeating.
+
+| Run | Result | Summary | Raw archive |
+| --- | --- | --- | --- |
+| chaos-20261111T165801Z-seed1-3475236253 | PASS; final audit passed | [summary](../results/chaos-20261111T165801Z-seed1-3475236253/summary.json) | [archive](../results/archives/chaos-20261111T165801Z-seed1-3475236253.tar.gz) |
+| chaos-20261111T165915Z-seed2-2342791297 | PASS; final audit passed | [summary](../results/chaos-20261111T165915Z-seed2-2342791297/summary.json) | [archive](../results/archives/chaos-20261111T165915Z-seed2-2342791297.tar.gz) |
+| chaos-20261111T170033Z-seed3-3968383568 | PASS; final audit passed | [summary](../results/chaos-20261111T170033Z-seed3-3968383568/summary.json) | [archive](../results/archives/chaos-20261111T170033Z-seed3-3968383568.tar.gz) |
+| load-20261111T171052Z-seed1-302806140 | PASS; final audit passed | [summary](../results/load-20261111T171052Z-seed1-302806140/summary.json) | [archive](../results/archives/load-20261111T171052Z-seed1-302806140.tar.gz) |
+| load-20261111T171627Z-seed1-1125020389 | FAIL: backlog growth; final audit passed | [summary](../results/load-20261111T171627Z-seed1-1125020389/summary.json) | [archive](../results/archives/load-20261111T171627Z-seed1-1125020389.tar.gz) |
+
+Each additional chaos seed accepted all 10,000 jobs, killed 14 workers, and reported no audit violations. Mixed load had response p95 9.38 ms and stable backlog. Create-only had response p95 17.49 ms, approximately 68.35 execution completions/second, and backlog growth from 965 to 10,430. It eventually completed all 33,032 jobs with a passing final audit. Across both measurement batches there are now six completed chaos runs (84 kills total), two passing mixed-load runs, and two create-only capacity failures, plus the original five preflight failures. The earlier detailed tables retain their original batch measurements.

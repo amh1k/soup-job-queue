@@ -1,23 +1,27 @@
 # AI usage disclosure
 
-## Where AI was used
+## How I used AI
 
-Codex helped interpret the assignment, explain concurrency concepts, propose the design, and implement the API, PostgreSQL store, migration runner, worker runtime, deployment configuration, tests, chaos/load tools, and independent audit. Codex also drafted and revised the README and delivery documents, inspected saved experiment reports, and packaged raw logs into archives.
+I used OpenAI Codex to help interpret the assignment, explore the design, and understand concurrency concepts such as leases, claim versions, and transaction boundaries. Codex generated substantial parts of the implementation: the API, PostgreSQL store, migrations, worker runtime, Docker configuration, tests, chaos/load harnesses, and independent audit. It also helped write the README, diagrams, delivery documents, and the reflection draft.
 
-## Decisions accepted or changed
+## Decisions I accepted or challenged
 
-Following discussion, the implementation uses Go and PostgreSQL with the database acting as the queue. The user chose to keep PostgreSQL as the queue after considering Redis. The implementation uses row locking, leases, claim versions, and a transaction covering the database effect and successful completion. These choices and their limits are explained in [design.md](design.md).
+I chose PostgreSQL as the queue after discussing the trade-offs of adding Redis. I accepted the design using row locks, leases, claim versions, and a transaction that commits the database effect and successful job state together. I asked for explanations of those mechanisms and their limits throughout implementation; the resulting design is documented in [design.md](design.md).
 
-The user questioned the large generated manifests in Git. They were removed from tracking and ignored; planned inputs remain reproducible from the generator, seed, and options. Original raw experiment logs are preserved in compressed archives. The user also requested clearer architecture diagrams and documentation focused on the assignment deliverables.
+I challenged the inclusion of large generated manifests in Git because they bloated the repository without adding useful source code. They were removed from tracking and ignored. The harness recreates planned inputs from its seed and settings, while original raw results are preserved in compressed archives. I also requested clearer architecture diagrams and documentation organized around the assignment's deliverables.
 
-## What was actually verified
+## What I verified
 
-The user ran three 10,000-job chaos seeds and both 100 RPS load profiles through Docker Compose. Codex inspected the persisted summaries and audits: three chaos passes, a mixed-load pass, and a create-only capacity failure with a passing final audit. The failure is retained and informs the DON'T SHIP verdict.
+I ran three batches of three 10,000-job chaos seeds and both 100 RPS load profiles through Docker Compose. Codex helped inspect the saved reports. All nine chaos runs passed their final audits. The mixed load passed, but the create-only load failed because eight workers could not keep up with incoming jobs. Its final audit passed after the queue drained. I retained that failure, and it supports the DON'T SHIP verdict.
 
-Codex ran Go unit/race tests, build/vet checks, and SQL smoke checks. Earlier sandbox checks skipped nineteen targeted PostgreSQL tests. The user subsequently ran `make verify-deployment`: the complete PostgreSQL race-test suite passed with zero skips, and normal deployment readiness and restart/persistence passed. Sufficient capacity for 100 unique creates/second remains unverified. Full results, earlier failures, and limitations are in [evidence.md](evidence.md).
+I then ran `make verify-deployment` locally. The full Go test suite passed against PostgreSQL with race detection and zero skips, including long-running heartbeat renewal and a paused worker resuming after reassignment. The deployment readiness, execution, restart, and persistence checks also passed. Codex separately ran unit/race tests, build/vet checks, and SQL smoke checks where its environment allowed them.
 
-The reflection is an AI-assisted draft for the submitter to review. No independent human code review or manually rewritten implementation is claimed; the user-executed Docker runs are the recorded human verification activity.
+## Corrections and remaining limits
 
-Following a source/evidence audit, Codex corrected cancellation error handling and final evidence reporting, added executable/source identification, and added a repeatable evidence archive command. Existing measurements were preserved. Targeted regression checks were added; fresh Docker workloads are required for the changed harness.
+A later Codex audit identified gaps in its generated harness: cancellation errors were ignored, and evidence-writing failures could leave misleading success reporting. Codex corrected those issues and added regression checks, executable/source identification, and a repeatable archive command. The earlier experiment results were preserved rather than rewritten. The final full chaos/load batch used the corrected harness with executable fingerprints and source checksums matching the current source. Sufficient capacity for 100 unique creates per second has not been demonstrated.
 
-Codex subsequently added PostgreSQL lifecycle tests for long-running heartbeat renewal and an actual paused/resumed child worker, plus an isolated Compose verification command for the full suite and restart/persistence. Docker access remained restricted for Codex, but the user subsequently ran these checks successfully in their normal terminal; Codex inspected the command logs, zero-skip PostgreSQL test output, and persisted job/effect results.
+The [evidence index](evidence.md) records successful runs, failed attempts, and remaining limitations. The reflection remains an AI-assisted draft for my review before submission.
+
+The second experiment batch still lacked the executable/source fingerprints added to the corrected image. Those results are preserved, but a rebuilt-image rerun remains necessary to verify the harness corrections.
+
+I reran all three chaos seeds and both load profiles with `--build`. Codex confirmed the new metadata fingerprints and source checksums, inspected the final audits, and updated the documents. The corrected-harness chaos runs and mixed profile passed; create-only again failed backlog stability while passing its final audit. Earlier unverified-image runs remain preserved as historical evidence.

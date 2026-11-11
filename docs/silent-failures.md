@@ -13,7 +13,7 @@
 | Unknown COMMIT outcome | Fresh read of terminal state/version; abandon unresolved outcomes without duplicating effects | Worker unit tests pass for reconciliation. A real network drop during COMMIT has not been injected. |
 | Harness misses lost jobs | Expected-key and payload reconciliation instead of aggregate totals alone | Pure audit corruption tests pass; an integration fixture removes an effect and adds an orphan, and passed against PostgreSQL. |
 
-Three subsequent full chaos runs passed their independent final audits under concurrent claims, retries, cancellations, and 14 worker kills per run. Both load-run audits passed; create-only capacity failed. These end-to-end observations supplement, but do not replace, the targeted integration cases, which also passed in the subsequent full PostgreSQL race-test suite with zero skips. See [the evidence index](evidence.md).
+The latest three corrected-harness chaos runs passed their independent audits under concurrent claims, retries, cancellations, and 44 worker kills in total. Both latest load-run audits passed; create-only capacity failed. Executable fingerprints and source checksums identify these latest runs. These end-to-end observations supplement, but do not replace, the targeted integration cases, which also passed in the subsequent full PostgreSQL race-test suite with zero skips. See [the evidence index](evidence.md).
 
 The tests themselves are inspectable evidence of what is intended to be checked. Unrun tests are not proof that the protection works under the stated condition. Raw check output is linked from `evidence.md`.
 

@@ -1,0 +1,21 @@
+{
+  "Successful": 30000,
+  "SuccessfulRPS": 100,
+  "ExecutionCompletionsPerSecond": 44.917005061813676,
+  "Pass": true,
+  "Scheduled": 30000,
+  "Sent": 30000,
+  "Dropped": 0,
+  "Errors": 0,
+  "ActualRPS": 100,
+  "LatencyP50MS": 3.541766,
+  "LatencyP95MS": 9.909361,
+  "LatencyP99MS": 65.84257,
+  "ScheduledLatencyP95MS": 10.84049,
+  "ScheduleLagP95MS": 1.230161,
+  "BacklogSlopePerSecond": 0.009257540572405742,
+  "FirstBacklog": 0,
+  "LastBacklog": 2,
+  "MetricsSamples": 300,
+  "Failures": []
+}
