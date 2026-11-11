@@ -1,17 +1,23 @@
-# AI assistance
+# AI usage disclosure
 
-Codex reviewed the assignment PDF, proposed the implementation plan, and generated the Task 1 schema, migration runner, configuration, HTTP health endpoints, deployment files, and tests. The selected design uses PostgreSQL as the queue, following discussion with the user.
+## Where AI was used
 
-Codex's checks and environment limitations are recorded in `task-1-verification.md`. The user has not yet recorded a personal review or independent verification; this document must not be interpreted as claiming that work occurred. Update this record as implementation and human review proceed.
+Codex helped interpret the assignment, explain concurrency concepts, propose the design, and implement the API, PostgreSQL store, migration runner, worker runtime, deployment configuration, tests, chaos/load tools, and independent audit. Codex also drafted and revised the README and delivery documents, inspected saved experiment reports, and packaged raw logs into archives.
 
+## Decisions accepted or changed
 
-For Task 2, Codex implemented the PostgreSQL job store, HTTP job endpoints, cursor validation, request normalization, cancellation, unit/integration tests, and documentation. Verification and the unrun database integration checks are recorded in `task-2-verification.md`. The user has not yet recorded independent verification of these changes.
+Following discussion, the implementation uses Go and PostgreSQL with the database acting as the queue. The user chose to keep PostgreSQL as the queue after considering Redis. The implementation uses row locking, leases, claim versions, and a transaction covering the database effect and successful completion. These choices and their limits are explained in [design.md](design.md).
 
+The user questioned the large generated manifests in Git. They were removed from tracking and ignored; planned inputs remain reproducible from the generator, seed, and options. Original raw experiment logs are preserved in compressed archives. The user also requested clearer architecture diagrams and documentation focused on the assignment deliverables.
 
-For Task 3, Codex implemented worker persistence methods, claim-version fencing, database-clock lease validation, atomic effect/completion, recovery, commit-uncertainty reporting, and targeted tests. Source review used the PostgreSQL row-locking and date/time documentation linked in the README. Executed checks and unverified concurrency cases are recorded in `task-3-verification.md`; no independent human verification is claimed.
+## What was actually verified
 
+The user ran three 10,000-job chaos seeds and both 100 RPS load profiles through Docker Compose. Codex inspected the persisted summaries and audits: three chaos passes, a mixed-load pass, and a create-only capacity failure with a passing final audit. The failure is retained and informs the DON'T SHIP verdict.
 
-For Task 4, Codex implemented the worker loop, environment settings, subprocess entry point, four-worker Compose configuration, heartbeat/recovery behavior, shutdown, completion reconciliation, tests, and usage documentation. Unit tests and static checks were executed; the real PostgreSQL lifecycle/SIGKILL tests and Compose runtime checks remain pending as described in `task-4-verification.md`. No independent human verification is claimed.
+Codex ran Go unit/race tests, build/vet checks, and SQL smoke checks. Earlier sandbox checks skipped nineteen targeted PostgreSQL tests. The user subsequently ran `make verify-deployment`: the complete PostgreSQL race-test suite passed with zero skips, and normal deployment readiness and restart/persistence passed. Sufficient capacity for 100 unique creates/second remains unverified. Full results, earlier failures, and limitations are in [evidence.md](evidence.md).
 
+The reflection is an AI-assisted draft for the submitter to review. No independent human code review or manually rewritten implementation is claimed; the user-executed Docker runs are the recorded human verification activity.
 
-For Tasks 5–6, Codex implemented the chaos/load tools, independent audit, process supervisor, immutable run evidence, tests, Compose profiles, and delivery documents. Five actual CLI invocations failed before database access; they were retained and explicitly classified as preflight attempts. Codex wrote an AI-assisted reflection draft and a DON'T SHIP verdict grounded in those observed limitations. No successful 10,000-job workload, measured 100 RPS result, or independent human review is claimed. The submitter should review the design and reflection, run the pending checks in an accessible environment, and record their actual accepted/changed/independently verified work here.
+Following a source/evidence audit, Codex corrected cancellation error handling and final evidence reporting, added executable/source identification, and added a repeatable evidence archive command. Existing measurements were preserved. Targeted regression checks were added; fresh Docker workloads are required for the changed harness.
+
+Codex subsequently added PostgreSQL lifecycle tests for long-running heartbeat renewal and an actual paused/resumed child worker, plus an isolated Compose verification command for the full suite and restart/persistence. Docker access remained restricted for Codex, but the user subsequently ran these checks successfully in their normal terminal; Codex inspected the command logs, zero-skip PostgreSQL test output, and persisted job/effect results.

@@ -1,0 +1,223 @@
+?   	github.com/amh1k/soup-job-queue/cmd/api	[no test files]
+?   	github.com/amh1k/soup-job-queue/cmd/chaos	[no test files]
+?   	github.com/amh1k/soup-job-queue/cmd/load	[no test files]
+?   	github.com/amh1k/soup-job-queue/cmd/migrate	[no test files]
+?   	github.com/amh1k/soup-job-queue/cmd/worker	[no test files]
+=== RUN   TestAuditDetectsCorruption
+=== RUN   TestAuditDetectsCorruption/unexpected_job
+=== RUN   TestAuditDetectsCorruption/cancelled_with_effect
+=== RUN   TestAuditDetectsCorruption/success_despite_requested_failure
+=== RUN   TestAuditDetectsCorruption/duplicate_effects
+=== RUN   TestAuditDetectsCorruption/stale_effect
+=== RUN   TestAuditDetectsCorruption/stuck_running
+=== RUN   TestAuditDetectsCorruption/wrong_input
+=== RUN   TestAuditDetectsCorruption/failed_with_effect
+=== RUN   TestAuditDetectsCorruption/no_execution_attempt
+=== RUN   TestAuditDetectsCorruption/missing_effect
+=== RUN   TestAuditDetectsCorruption/residual_owner
+=== RUN   TestAuditDetectsCorruption/residual_lease
+=== RUN   TestAuditDetectsCorruption/missing_completion
+=== RUN   TestAuditDetectsCorruption/unknown_state
+--- PASS: TestAuditDetectsCorruption (0.00s)
+    --- PASS: TestAuditDetectsCorruption/unexpected_job (0.00s)
+    --- PASS: TestAuditDetectsCorruption/cancelled_with_effect (0.00s)
+    --- PASS: TestAuditDetectsCorruption/success_despite_requested_failure (0.00s)
+    --- PASS: TestAuditDetectsCorruption/duplicate_effects (0.00s)
+    --- PASS: TestAuditDetectsCorruption/stale_effect (0.00s)
+    --- PASS: TestAuditDetectsCorruption/stuck_running (0.00s)
+    --- PASS: TestAuditDetectsCorruption/wrong_input (0.00s)
+    --- PASS: TestAuditDetectsCorruption/failed_with_effect (0.00s)
+    --- PASS: TestAuditDetectsCorruption/no_execution_attempt (0.00s)
+    --- PASS: TestAuditDetectsCorruption/missing_effect (0.00s)
+    --- PASS: TestAuditDetectsCorruption/residual_owner (0.00s)
+    --- PASS: TestAuditDetectsCorruption/residual_lease (0.00s)
+    --- PASS: TestAuditDetectsCorruption/missing_completion (0.00s)
+    --- PASS: TestAuditDetectsCorruption/unknown_state (0.00s)
+=== RUN   TestValidFailureAndCancellation
+--- PASS: TestValidFailureAndCancellation (0.00s)
+PASS
+ok  	github.com/amh1k/soup-job-queue/internal/audit	1.034s
+=== RUN   TestLoadDefaults
+--- PASS: TestLoadDefaults (0.00s)
+=== RUN   TestLoadRejectsInvalidSettings
+=== RUN   TestLoadRejectsInvalidSettings/DATABASE_URL=
+=== RUN   TestLoadRejectsInvalidSettings/HTTP_ADDR=bad-address
+=== RUN   TestLoadRejectsInvalidSettings/DB_TIMEOUT=0s
+=== RUN   TestLoadRejectsInvalidSettings/DB_TIMEOUT=bad
+=== RUN   TestLoadRejectsInvalidSettings/SHUTDOWN_TIMEOUT=-1s
+=== RUN   TestLoadRejectsInvalidSettings/DB_MAX_CONNS=0
+=== RUN   TestLoadRejectsInvalidSettings/DB_MAX_CONNS=bad
+--- PASS: TestLoadRejectsInvalidSettings (0.00s)
+    --- PASS: TestLoadRejectsInvalidSettings/DATABASE_URL= (0.00s)
+    --- PASS: TestLoadRejectsInvalidSettings/HTTP_ADDR=bad-address (0.00s)
+    --- PASS: TestLoadRejectsInvalidSettings/DB_TIMEOUT=0s (0.00s)
+    --- PASS: TestLoadRejectsInvalidSettings/DB_TIMEOUT=bad (0.00s)
+    --- PASS: TestLoadRejectsInvalidSettings/SHUTDOWN_TIMEOUT=-1s (0.00s)
+    --- PASS: TestLoadRejectsInvalidSettings/DB_MAX_CONNS=0 (0.00s)
+    --- PASS: TestLoadRejectsInvalidSettings/DB_MAX_CONNS=bad (0.00s)
+=== RUN   TestLoadWorkerDefaults
+--- PASS: TestLoadWorkerDefaults (0.00s)
+=== RUN   TestLoadWorkerRejectsUnsafeTiming
+--- PASS: TestLoadWorkerRejectsUnsafeTiming (0.00s)
+PASS
+ok  	github.com/amh1k/soup-job-queue/internal/config	1.034s
+?   	github.com/amh1k/soup-job-queue/internal/database	[no test files]
+=== RUN   TestLoadPlanAndPercentiles
+--- PASS: TestLoadPlanAndPercentiles (0.00s)
+=== RUN   TestLoadAssessmentDetectsOverload
+--- PASS: TestLoadAssessmentDetectsOverload (0.00s)
+=== RUN   TestFailedPreflightPreservesEvidence
+Evidence: /tmp/TestFailedPreflightPreservesEvidence682699963/001/chaos-20261111T140614Z-seed1-2750805326
+/tmp/TestFailedPreflightPreservesEvidence682699963/001/chaos-20261111T140614Z-seed1-2750805326 success=false error=DATABASE_URL must be a PostgreSQL URL
+--- PASS: TestFailedPreflightPreservesEvidence (0.03s)
+=== RUN   TestSupervisorKillsReplacesAndReaps
+Evidence: /tmp/TestSupervisorKillsReplacesAndReaps6578499/001/supervisor-test-20261111T140614Z-seed1-1630827720
+--- PASS: TestSupervisorKillsReplacesAndReaps (0.03s)
+=== RUN   TestCatalogRejectsDifferentIDsForSameKey
+--- PASS: TestCatalogRejectsDifferentIDsForSameKey (0.00s)
+PASS
+ok  	github.com/amh1k/soup-job-queue/internal/experiment	1.100s
+=== RUN   TestLivenessDoesNotCheckDatabase
+--- PASS: TestLivenessDoesNotCheckDatabase (0.00s)
+=== RUN   TestReadiness
+=== RUN   TestReadiness/ready
+=== RUN   TestReadiness/unavailable
+--- PASS: TestReadiness (0.00s)
+    --- PASS: TestReadiness/ready (0.00s)
+    --- PASS: TestReadiness/unavailable (0.00s)
+=== RUN   TestReadinessDeadline
+--- PASS: TestReadinessDeadline (0.00s)
+=== RUN   TestCreateValidation
+=== RUN   TestCreateValidation/{"duration_ms":1}
+=== RUN   TestCreateValidation/{"duration_ms":1}éééé
+=== RUN   TestCreateValidation/{}k
+=== RUN   TestCreateValidation/nullk
+=== RUN   TestCreateValidation/{"duration_ms":null}k
+=== RUN   TestCreateValidation/{"duration_ms":0}k
+=== RUN   TestCreateValidation/{"duration_ms":5001}k
+=== RUN   TestCreateValidation/{"duration_ms":1.5}k
+=== RUN   TestCreateValidation/{"duration_ms":1,"unknown":1}k
+=== RUN   TestCreateValidation/{"duration_ms":1}_{}k
+=== RUN   TestCreateValidation/{"duration_ms":1}garbagek
+=== RUN   TestCreateValidation/{"duration_ms":1,"simulate_failure":null}k
+=== RUN   TestCreateValidation/{"duration_ms":1,"simulate_failure":"true"}k
+=== RUN   TestCreateValidation/{"duration_ms":1,"simulate_failure":________________________k
+--- PASS: TestCreateValidation (0.02s)
+    --- PASS: TestCreateValidation/{"duration_ms":1} (0.00s)
+    --- PASS: TestCreateValidation/{"duration_ms":1}éééé (0.00s)
+    --- PASS: TestCreateValidation/{}k (0.00s)
+    --- PASS: TestCreateValidation/nullk (0.00s)
+    --- PASS: TestCreateValidation/{"duration_ms":null}k (0.00s)
+    --- PASS: TestCreateValidation/{"duration_ms":0}k (0.00s)
+    --- PASS: TestCreateValidation/{"duration_ms":5001}k (0.00s)
+    --- PASS: TestCreateValidation/{"duration_ms":1.5}k (0.00s)
+    --- PASS: TestCreateValidation/{"duration_ms":1,"unknown":1}k (0.00s)
+    --- PASS: TestCreateValidation/{"duration_ms":1}_{}k (0.00s)
+    --- PASS: TestCreateValidation/{"duration_ms":1}garbagek (0.00s)
+    --- PASS: TestCreateValidation/{"duration_ms":1,"simulate_failure":null}k (0.00s)
+    --- PASS: TestCreateValidation/{"duration_ms":1,"simulate_failure":"true"}k (0.00s)
+    --- PASS: TestCreateValidation/{"duration_ms":1,"simulate_failure":________________________k (0.00s)
+=== RUN   TestCreateDefaultsAndReplay
+--- PASS: TestCreateDefaultsAndReplay (0.00s)
+=== RUN   TestJobErrors
+2026/11/11 19:06:14 ERROR job operation failed error="secret database failure"
+--- PASS: TestJobErrors (0.00s)
+=== RUN   TestPaginationValidationAndRoundTrip
+--- PASS: TestPaginationValidationAndRoundTrip (0.00s)
+=== RUN   TestGetCancelAndMethodValidation
+--- PASS: TestGetCancelAndMethodValidation (0.00s)
+PASS
+ok  	github.com/amh1k/soup-job-queue/internal/httpapi	1.064s
+=== RUN   TestInvalidClaimInputs
+--- PASS: TestInvalidClaimInputs (0.00s)
+=== RUN   TestValidID
+--- PASS: TestValidID (0.00s)
+=== RUN   TestIndependentAuditOnCorruptDatabase
+    audit_integration_test.go:12: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestIndependentAuditOnCorruptDatabase (0.00s)
+=== RUN   TestConcurrentClaims
+    claims_test.go:41: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestConcurrentClaims (0.00s)
+=== RUN   TestClaimSkipsLockedOldest
+    claims_test.go:91: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestClaimSkipsLockedOldest (0.00s)
+=== RUN   TestRenewFencingAndDatabaseTime
+    claims_test.go:124: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestRenewFencingAndDatabaseTime (0.00s)
+=== RUN   TestFinishRollbackAndInvariantViolation
+    claims_test.go:187: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestFinishRollbackAndInvariantViolation (0.00s)
+=== RUN   TestFailureAndAttemptLimit
+    claims_test.go:221: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestFailureAndAttemptLimit (0.00s)
+=== RUN   TestConcurrentRecoveryAndBatchBound
+    claims_test.go:248: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestConcurrentRecoveryAndBatchBound (0.00s)
+=== RUN   TestCancelFinishRace
+    claims_test.go:287: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestCancelFinishRace (0.00s)
+=== RUN   TestLeaseExpiresWhileWaitingForLock
+    claims_test.go:318: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestLeaseExpiresWhileWaitingForLock (0.00s)
+=== RUN   TestCancellationFencesAllWorkerWrites
+    claims_test.go:343: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestCancellationFencesAllWorkerWrites (0.00s)
+=== RUN   TestRecoverySkipsLockedRows
+    claims_test.go:362: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestRecoverySkipsLockedRows (0.00s)
+=== RUN   TestConcurrentIdempotentCreation
+    store_test.go:67: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestConcurrentIdempotentCreation (0.00s)
+=== RUN   TestPaginationWithEqualTimestamps
+    store_test.go:131: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestPaginationWithEqualTimestamps (0.00s)
+=== RUN   TestCancellationAndRead
+    store_test.go:177: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestCancellationAndRead (0.00s)
+=== RUN   TestHTTPRetryAfterLostResponse
+    store_test.go:219: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestHTTPRetryAfterLostResponse (0.00s)
+=== RUN   TestWorkerLifecycle
+    worker_integration_test.go:69: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestWorkerLifecycle (0.00s)
+=== RUN   TestWorkerSubprocess
+--- PASS: TestWorkerSubprocess (0.00s)
+=== RUN   TestWorkerSIGKILLRecovery
+    worker_integration_test.go:132: set TEST_DATABASE_URL for PostgreSQL integration tests
+--- SKIP: TestWorkerSIGKILLRecovery (0.00s)
+PASS
+ok  	github.com/amh1k/soup-job-queue/internal/jobs	1.041s
+=== RUN   TestSuccessHeartbeatsAndRecovery
+--- PASS: TestSuccessHeartbeatsAndRecovery (0.05s)
+=== RUN   TestSimulatedFailure
+--- PASS: TestSimulatedFailure (0.05s)
+=== RUN   TestHeartbeatFailureAbandonsAttempt
+=== RUN   TestHeartbeatFailureAbandonsAttempt/job_claim_is_no_longer_current
+=== RUN   TestHeartbeatFailureAbandonsAttempt/database_unavailable
+=== RUN   TestHeartbeatFailureAbandonsAttempt/context_deadline_exceeded
+--- PASS: TestHeartbeatFailureAbandonsAttempt (0.02s)
+    --- PASS: TestHeartbeatFailureAbandonsAttempt/job_claim_is_no_longer_current (0.01s)
+    --- PASS: TestHeartbeatFailureAbandonsAttempt/database_unavailable (0.01s)
+    --- PASS: TestHeartbeatFailureAbandonsAttempt/context_deadline_exceeded (0.01s)
+=== RUN   TestShutdownAbandonsRunningAttempt
+--- PASS: TestShutdownAbandonsRunningAttempt (0.00s)
+=== RUN   TestTransientClaimAndRecoveryFailures
+--- PASS: TestTransientClaimAndRecoveryFailures (0.05s)
+=== RUN   TestUncertainCompletionReconcilesWithoutRepeatingEffect
+--- PASS: TestUncertainCompletionReconcilesWithoutRepeatingEffect (0.05s)
+=== RUN   TestCompletionErrorDoesNotBecomeExecutionFailure
+--- PASS: TestCompletionErrorDoesNotBecomeExecutionFailure (0.05s)
+=== RUN   TestInvariantFailureStopsWorker
+--- PASS: TestInvariantFailureStopsWorker (0.05s)
+=== RUN   TestOptionsValidation
+--- PASS: TestOptionsValidation (0.00s)
+PASS
+ok  	github.com/amh1k/soup-job-queue/internal/worker	1.368s
+=== RUN   TestMigrationAndReadiness
+    migrations_test.go:57: set TEST_DATABASE_URL for real PostgreSQL integration tests
+--- SKIP: TestMigrationAndReadiness (0.00s)
+=== RUN   TestSchemaConstraints
+    migrations_test.go:96: set TEST_DATABASE_URL for real PostgreSQL integration tests
+--- SKIP: TestSchemaConstraints (0.00s)
+PASS
+ok  	github.com/amh1k/soup-job-queue/migrations	1.032s

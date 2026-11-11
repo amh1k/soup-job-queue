@@ -1,0 +1,237 @@
+ Image soup-verify-c3f2feee479f-worker-1 Building 
+ Image soup-verify-c3f2feee479f-migrate Building 
+ Image soup-verify-c3f2feee479f-worker-3 Building 
+ Image soup-verify-c3f2feee479f-worker-4 Building 
+ Image soup-verify-c3f2feee479f-worker-2 Building 
+ Image soup-verify-c3f2feee479f-api Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 2.87kB done
+#1 DONE 0.0s
+
+#2 [worker-3 internal] load build definition from Dockerfile
+#2 transferring dockerfile: 894B 0.0s done
+#2 DONE 0.1s
+
+#3 [worker-2 internal] load metadata for docker.io/library/alpine:3.23
+#3 ...
+
+#4 [worker-3 internal] load metadata for docker.io/library/golang:1.26.8-alpine
+#4 DONE 1.7s
+
+#3 [worker-4 internal] load metadata for docker.io/library/alpine:3.23
+#3 DONE 2.1s
+
+#5 [worker-4 internal] load .dockerignore
+#5 transferring context: 89B done
+#5 DONE 0.0s
+
+#6 [worker-2 internal] load build context
+#6 DONE 0.0s
+
+#7 [worker-4 build 1/7] FROM docker.io/library/golang:1.26.8-alpine@sha256:8ac98ca534ac3f51e1f420a1dd2c15e74c75cfa0f23f3ad27eb5d7236c349a0c
+#7 resolve docker.io/library/golang:1.26.8-alpine@sha256:8ac98ca534ac3f51e1f420a1dd2c15e74c75cfa0f23f3ad27eb5d7236c349a0c 0.1s done
+#7 resolve docker.io/library/golang:1.26.8-alpine@sha256:8ac98ca534ac3f51e1f420a1dd2c15e74c75cfa0f23f3ad27eb5d7236c349a0c 0.1s done
+#7 DONE 0.1s
+
+#8 [api stage-1 1/4] FROM docker.io/library/alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2
+#8 resolve docker.io/library/alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 0.1s done
+#8 DONE 0.1s
+
+#9 [worker-4 stage-1 2/4] RUN apk add --no-cache ca-certificates     && addgroup -S app && adduser -S -G app app
+#9 CACHED
+
+#10 [worker-3 stage-1 3/4] WORKDIR /app
+#10 CACHED
+
+#6 [worker-1 internal] load build context
+#6 transferring context: 104.36kB 0.0s done
+#6 DONE 0.0s
+
+#11 [worker-2 build 2/7] WORKDIR /src
+#11 CACHED
+
+#12 [worker-2 build 3/7] COPY go.mod go.sum ./
+#12 CACHED
+
+#13 [migrate build 4/7] RUN go mod download
+#13 CACHED
+
+#14 [worker-4 build 5/7] COPY . .
+#14 DONE 0.2s
+
+#15 [worker-1 build 6/7] RUN mkdir -p /out && sha256sum go.mod go.sum Dockerfile compose.yaml compose.verify.yaml $(find cmd internal migrations scripts -type f | sort) > /out/source.sha256
+#15 DONE 1.9s
+
+#16 [api build 7/7] RUN CGO_ENABLED=0 go build -trimpath -o /out/api ./cmd/api     && CGO_ENABLED=0 go build -trimpath -o /out/migrate ./cmd/migrate     && CGO_ENABLED=0 go build -trimpath -o /out/worker ./cmd/worker     && CGO_ENABLED=0 go build -trimpath -o /out/chaos ./cmd/chaos     && CGO_ENABLED=0 go build -trimpath -o /out/load ./cmd/load
+#16 DONE 36.2s
+
+#17 [worker-1 stage-1 4/4] COPY --from=build /out/api /out/migrate /out/worker /out/chaos /out/load /out/source.sha256 /app/
+#17 DONE 0.5s
+
+#18 [worker-1] exporting to image
+#18 exporting layers
+#18 ...
+
+#19 [migrate] exporting to image
+#19 exporting layers 7.5s done
+#19 exporting manifest sha256:211c310438516413857d76464c9c7d4fb7566389ae70f321acd6a38ededf3774
+#19 ...
+
+#18 [worker-1] exporting to image
+#18 exporting layers 7.5s done
+#18 exporting manifest sha256:6eee2c31f9bf4b19e593393474d2baa05dbb4a4099aa7d975e3a6470b3884f20
+#18 exporting manifest sha256:6eee2c31f9bf4b19e593393474d2baa05dbb4a4099aa7d975e3a6470b3884f20 0.1s done
+#18 exporting config sha256:3c4f41525d789e44e486727c9d7e3d0aeb47abb3c80dc26b24aeaa094ef74fff
+#18 exporting config sha256:3c4f41525d789e44e486727c9d7e3d0aeb47abb3c80dc26b24aeaa094ef74fff 0.1s done
+#18 exporting attestation manifest sha256:bec0c12f9609629e2a86f8f01d93da655d432e775ba59894b65ca901ba96ed35
+#18 exporting attestation manifest sha256:bec0c12f9609629e2a86f8f01d93da655d432e775ba59894b65ca901ba96ed35 0.2s done
+#18 exporting manifest list sha256:1bf4f2662042266c16afa01eb3c199d229a200e02eb7cfedad80cbfd71863f98
+#18 exporting manifest list sha256:1bf4f2662042266c16afa01eb3c199d229a200e02eb7cfedad80cbfd71863f98 0.1s done
+#18 naming to docker.io/library/soup-verify-c3f2feee479f-worker-1:latest 0.0s done
+#18 unpacking to docker.io/library/soup-verify-c3f2feee479f-worker-1:latest
+#18 ...
+
+#20 [worker-3] exporting to image
+#20 exporting layers 7.5s done
+#20 exporting manifest sha256:eade5383c3e9297e5cf7e6719706755cc2e609299705f62ded0073829358794e 0.1s done
+#20 exporting config sha256:9697fda3e29a01d7bafdeaedde93098c01c337021cb4091e79ef3af78bbb926d 0.1s done
+#20 exporting attestation manifest sha256:9b1cb41625bfb2375647899f320b626365ac8a3d90b0ecc0e0250d982657a606 0.2s done
+#20 exporting manifest list sha256:aca3feadea4552e10d9db82eba72c86209d00f57aab98ce6f459145deb03d5f7 0.1s done
+#20 naming to docker.io/library/soup-verify-c3f2feee479f-worker-3:latest 0.1s done
+#20 unpacking to docker.io/library/soup-verify-c3f2feee479f-worker-3:latest
+#20 ...
+
+#21 [worker-4] exporting to image
+#21 exporting layers 7.5s done
+#21 exporting manifest sha256:6d508d342bf67753c54e474a5bf25f86735fc49c57d034009c4926cd04e90a0d 0.1s done
+#21 exporting config sha256:8a64de4496bb29fac377b7c931c9b779809bd801358b474bb1846c10a835f665 0.1s done
+#21 exporting attestation manifest sha256:d07837c020c0fa2c000c09e65129cd924aa561248fe192a386c5421c2b11e256 0.2s done
+#21 exporting manifest list sha256:f9c7a817010067ec3626538f226d526d8b078c930f43ade6ed131e2e08e838db 0.1s done
+#21 naming to docker.io/library/soup-verify-c3f2feee479f-worker-4:latest 0.0s done
+#21 unpacking to docker.io/library/soup-verify-c3f2feee479f-worker-4:latest
+#21 ...
+
+#22 [worker-2] exporting to image
+#22 exporting layers 7.5s done
+#22 exporting manifest sha256:d409938462e4a53f6ebab81bbd023fa658a2e1a8650c046f75115a6c4bad71eb 0.1s done
+#22 exporting config sha256:2404480d481164b46a76676369fb6098d622b7a9b5809e2afaa1ee968de6bd73 0.1s done
+#22 exporting attestation manifest sha256:7abb7664a5a31473e68076c17cc4a39980c0c3d97d2f15403be9c9de2f561ca1 0.2s done
+#22 exporting manifest list sha256:6a465d0c3b491b780e6b1f3b89e0061937e9d3cfce99c23474f376e4e91412ba 0.1s done
+#22 naming to docker.io/library/soup-verify-c3f2feee479f-worker-2:latest 0.0s done
+#22 unpacking to docker.io/library/soup-verify-c3f2feee479f-worker-2:latest
+#22 ...
+
+#23 [api] exporting to image
+#23 exporting layers 7.5s done
+#23 exporting manifest sha256:95eba8bfd228f80bb6e8e37cb73bc0891635c8c4a3525a7370de42db725ae218 0.1s done
+#23 exporting config sha256:0e3cc475a6f55e9005f83d38c3fa746d4aa0f4c0558c9d1c0aadb45cfc047e08 0.1s done
+#23 exporting attestation manifest sha256:31ea45c1fc33efb1191f2336b9d417f0113b214db2f820f85cbf01ceb5200cf7 0.2s done
+#23 exporting manifest list sha256:efa38865cf7d640d3fe08f0e989925dbf264c19bfe6b79bb328a275c986f5215 0.1s done
+#23 naming to docker.io/library/soup-verify-c3f2feee479f-api:latest 0.0s done
+#23 unpacking to docker.io/library/soup-verify-c3f2feee479f-api:latest
+#23 ...
+
+#19 [migrate] exporting to image
+#19 exporting manifest sha256:211c310438516413857d76464c9c7d4fb7566389ae70f321acd6a38ededf3774 0.1s done
+#19 exporting config sha256:59169c6a5e2e658f6fde4bc1b5a318cf96ddf7e26b38840c2691bdf205c8530b 0.1s done
+#19 exporting attestation manifest sha256:993e2ce6eb4c5389430e241a1ae3f4524f5afcc80737ab99f7f20033c0f5ea77 0.2s done
+#19 exporting manifest list sha256:793e12fdace444b2dba8b65aaf7d61ce55ea251f2bfd99838e049d3ecdc04404 0.1s done
+#19 naming to docker.io/library/soup-verify-c3f2feee479f-migrate:latest 0.0s done
+#19 unpacking to docker.io/library/soup-verify-c3f2feee479f-migrate:latest
+#19 ...
+
+#21 [worker-4] exporting to image
+#21 unpacking to docker.io/library/soup-verify-c3f2feee479f-worker-4:latest 4.6s done
+#21 DONE 12.9s
+
+#22 [worker-2] exporting to image
+#22 unpacking to docker.io/library/soup-verify-c3f2feee479f-worker-2:latest 4.6s done
+#22 DONE 13.0s
+
+#19 [migrate] exporting to image
+#19 unpacking to docker.io/library/soup-verify-c3f2feee479f-migrate:latest 4.6s done
+#19 DONE 12.9s
+
+#18 [worker-1] exporting to image
+#18 unpacking to docker.io/library/soup-verify-c3f2feee479f-worker-1:latest 4.8s done
+#18 DONE 13.1s
+
+#23 [api] exporting to image
+#23 unpacking to docker.io/library/soup-verify-c3f2feee479f-api:latest 4.7s done
+#23 DONE 13.0s
+
+#20 [worker-3] exporting to image
+#20 unpacking to docker.io/library/soup-verify-c3f2feee479f-worker-3:latest 4.7s done
+#20 DONE 13.0s
+
+#24 [worker-4] resolving provenance for metadata file
+#24 DONE 1.1s
+
+#25 [worker-1] resolving provenance for metadata file
+#25 DONE 0.4s
+
+#26 [api] resolving provenance for metadata file
+#26 DONE 0.3s
+
+#27 [worker-3] resolving provenance for metadata file
+#27 DONE 0.6s
+
+#28 [migrate] resolving provenance for metadata file
+#28 DONE 1.1s
+
+#29 [worker-2] resolving provenance for metadata file
+#29 DONE 0.1s
+ Image soup-verify-c3f2feee479f-worker-1 Built 
+ Image soup-verify-c3f2feee479f-worker-2 Built 
+ Image soup-verify-c3f2feee479f-worker-3 Built 
+ Image soup-verify-c3f2feee479f-worker-4 Built 
+ Image soup-verify-c3f2feee479f-api Built 
+ Image soup-verify-c3f2feee479f-migrate Built 
+ Volume soup-verify-c3f2feee479f_postgres_data Creating 
+ Volume soup-verify-c3f2feee479f_postgres_data Creating 
+ Network soup-verify-c3f2feee479f_default Creating 
+ Network soup-verify-c3f2feee479f_default Creating 
+ Volume soup-verify-c3f2feee479f_postgres_data Created 
+ Volume soup-verify-c3f2feee479f_postgres_data Created 
+ Network soup-verify-c3f2feee479f_default Created 
+ Network soup-verify-c3f2feee479f_default Created 
+ Container soup-verify-c3f2feee479f-db-1 Creating 
+ Container soup-verify-c3f2feee479f-db-1 Created 
+ Container soup-verify-c3f2feee479f-migrate-1 Creating 
+ Container soup-verify-c3f2feee479f-migrate-1 Created 
+ Container soup-verify-c3f2feee479f-worker-3-1 Creating 
+ Container soup-verify-c3f2feee479f-api-1 Creating 
+ Container soup-verify-c3f2feee479f-worker-1-1 Creating 
+ Container soup-verify-c3f2feee479f-worker-2-1 Creating 
+ Container soup-verify-c3f2feee479f-worker-4-1 Creating 
+ Container soup-verify-c3f2feee479f-worker-3-1 Created 
+ Container soup-verify-c3f2feee479f-worker-1-1 Created 
+ Container soup-verify-c3f2feee479f-worker-2-1 Created 
+ Container soup-verify-c3f2feee479f-worker-4-1 Created 
+ Container soup-verify-c3f2feee479f-api-1 Created 
+ Container soup-verify-c3f2feee479f-db-1 Starting 
+ Container soup-verify-c3f2feee479f-db-1 Started 
+ Container soup-verify-c3f2feee479f-db-1 Waiting 
+ Container soup-verify-c3f2feee479f-db-1 Healthy 
+ Container soup-verify-c3f2feee479f-migrate-1 Starting 
+ Container soup-verify-c3f2feee479f-migrate-1 Started 
+ Container soup-verify-c3f2feee479f-migrate-1 Waiting 
+ Container soup-verify-c3f2feee479f-migrate-1 Waiting 
+ Container soup-verify-c3f2feee479f-migrate-1 Waiting 
+ Container soup-verify-c3f2feee479f-migrate-1 Waiting 
+ Container soup-verify-c3f2feee479f-migrate-1 Waiting 
+ Container soup-verify-c3f2feee479f-migrate-1 Exited 
+ Container soup-verify-c3f2feee479f-api-1 Starting 
+ Container soup-verify-c3f2feee479f-migrate-1 Exited 
+ Container soup-verify-c3f2feee479f-worker-3-1 Starting 
+ Container soup-verify-c3f2feee479f-migrate-1 Exited 
+ Container soup-verify-c3f2feee479f-worker-4-1 Starting 
+ Container soup-verify-c3f2feee479f-migrate-1 Exited 
+ Container soup-verify-c3f2feee479f-worker-1-1 Starting 
+ Container soup-verify-c3f2feee479f-migrate-1 Exited 
+ Container soup-verify-c3f2feee479f-worker-2-1 Starting 
+ Container soup-verify-c3f2feee479f-api-1 Started 
+ Container soup-verify-c3f2feee479f-worker-3-1 Started 
+ Container soup-verify-c3f2feee479f-worker-4-1 Started 
+ Container soup-verify-c3f2feee479f-worker-1-1 Started 
+ Container soup-verify-c3f2feee479f-worker-2-1 Started 

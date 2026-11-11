@@ -1,0 +1,8 @@
+NAME                                  IMAGE                               COMMAND                  SERVICE    CREATED          STATUS                            PORTS
+soup-verify-c3f2feee479f-api-1        soup-verify-c3f2feee479f-api        "/app/api"               api        10 seconds ago   Up 3 seconds (health: starting)   8080/tcp
+soup-verify-c3f2feee479f-db-1         postgres:18.6-alpine                "docker-entrypoint.s…"   db         10 seconds ago   Up 8 seconds (healthy)            5432/tcp
+soup-verify-c3f2feee479f-migrate-1    soup-verify-c3f2feee479f-migrate    "/app/migrate"           migrate    10 seconds ago   Exited (0) 4 seconds ago          
+soup-verify-c3f2feee479f-worker-1-1   soup-verify-c3f2feee479f-worker-1   "/app/worker"            worker-1   10 seconds ago   Up 3 seconds                      8080/tcp
+soup-verify-c3f2feee479f-worker-2-1   soup-verify-c3f2feee479f-worker-2   "/app/worker"            worker-2   10 seconds ago   Up 1 second                       8080/tcp
+soup-verify-c3f2feee479f-worker-3-1   soup-verify-c3f2feee479f-worker-3   "/app/worker"            worker-3   10 seconds ago   Up 2 seconds                      8080/tcp
+soup-verify-c3f2feee479f-worker-4-1   soup-verify-c3f2feee479f-worker-4   "/app/worker"            worker-4   10 seconds ago   Up 2 seconds                      8080/tcp

@@ -58,7 +58,10 @@ func runChaos(ctx context.Context, o Options, s *session, c *client, entries []a
 		rng := rand.New(rand.NewSource(o.Seed + 3))
 		for phase.Err() == nil {
 			if id := c.id(rng.Intn(1 << 30)); id != "" {
-				c.cancelJob(phase, "cancellation", id)
+				ok := c.cancelJob(phase, "cancellation", id)
+				if !ok && phase.Err() == nil {
+					record(errors.New("unexpected cancellation response; inspect HTTP evidence"))
+				}
 			}
 			if !sleep(phase, 5*time.Millisecond) {
 				return

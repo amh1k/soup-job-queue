@@ -53,6 +53,10 @@ func environment(extra map[string]string) []string {
 func (s *supervisor) start(slot int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	digest, err := fileSHA256(s.binary)
+	if err != nil {
+		return fmt.Errorf("hash worker binary: %w", err)
+	}
 	generation := s.slots[slot].generation + 1
 	logFile, err := os.OpenFile(filepath.Join(s.evidence.dir, fmt.Sprintf("worker-%d-%d.log", slot, generation)), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
 	if err != nil {
@@ -67,7 +71,7 @@ func (s *supervisor) start(slot int) error {
 		return err
 	}
 	s.slots[slot] = child{process: cmd.Process, generation: generation}
-	s.evidence.event("worker_started", map[string]any{"slot": slot, "generation": generation, "pid": cmd.Process.Pid})
+	s.evidence.event("worker_started", map[string]any{"slot": slot, "generation": generation, "pid": cmd.Process.Pid, "executable_sha256": digest})
 	go func() {
 		err := cmd.Wait()
 		_ = logFile.Close()

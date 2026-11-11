@@ -1,0 +1,294 @@
+[
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "config",
+      "--quiet"
+    ],
+    "exit_code": 0,
+    "output": "000.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "up",
+      "--build",
+      "-d"
+    ],
+    "exit_code": 0,
+    "output": "001.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "wget",
+      "-q",
+      "-O",
+      "-",
+      "http://127.0.0.1:8080/readyz"
+    ],
+    "exit_code": 0,
+    "output": "002.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "--profile",
+      "verification",
+      "run",
+      "--rm",
+      "integration"
+    ],
+    "exit_code": 0,
+    "output": "003.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "db",
+      "psql",
+      "-U",
+      "soup",
+      "-d",
+      "soup",
+      "-Atc",
+      "INSERT INTO jobs(idempotency_key,request) VALUES('deployment-persistence',jsonb_build_object('duration_ms',100,'simulate_failure',false)) RETURNING id"
+    ],
+    "exit_code": 0,
+    "output": "004.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "db",
+      "psql",
+      "-U",
+      "soup",
+      "-d",
+      "soup",
+      "-Atc",
+      "SELECT status FROM jobs WHERE id='e1996bff-0db6-40c2-bac8-2862ac9910a9'"
+    ],
+    "exit_code": 0,
+    "output": "005.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "wget",
+      "-q",
+      "-O",
+      "-",
+      "http://127.0.0.1:8080/jobs/e1996bff-0db6-40c2-bac8-2862ac9910a9"
+    ],
+    "exit_code": 0,
+    "output": "006.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "down"
+    ],
+    "exit_code": 0,
+    "output": "007.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "up",
+      "-d"
+    ],
+    "exit_code": 0,
+    "output": "008.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "wget",
+      "-q",
+      "-O",
+      "-",
+      "http://127.0.0.1:8080/readyz"
+    ],
+    "exit_code": 0,
+    "output": "009.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "api",
+      "wget",
+      "-q",
+      "-O",
+      "-",
+      "http://127.0.0.1:8080/jobs/e1996bff-0db6-40c2-bac8-2862ac9910a9"
+    ],
+    "exit_code": 0,
+    "output": "010.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "exec",
+      "-T",
+      "db",
+      "psql",
+      "-U",
+      "soup",
+      "-d",
+      "soup",
+      "-Atc",
+      "SELECT count(*) FROM job_effects WHERE job_id='e1996bff-0db6-40c2-bac8-2862ac9910a9'"
+    ],
+    "exit_code": 0,
+    "output": "011.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "ps",
+      "--all"
+    ],
+    "exit_code": 0,
+    "output": "012.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "logs",
+      "--no-color"
+    ],
+    "exit_code": 0,
+    "output": "013.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c3f2feee479f",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "down",
+      "-v",
+      "--remove-orphans"
+    ],
+    "exit_code": 0,
+    "output": "014.log"
+  }
+]

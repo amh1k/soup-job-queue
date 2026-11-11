@@ -37,22 +37,7 @@ func Run(ctx context.Context, kind string, o Options) (runErr error) {
 			runErr = fmt.Errorf("harness panic: %v", recovered)
 			e.event("panic", map[string]string{"message": fmt.Sprint(recovered), "stack": string(debug.Stack())})
 		}
-		e.mu.Lock()
-		eventErr := e.err
-		e.mu.Unlock()
-		runErr = errors.Join(runErr, eventErr)
-		summary.Ended = time.Now().UTC()
-		summary.Success = runErr == nil
-		if runErr != nil {
-			summary.Error = runErr.Error()
-		}
-		e.event("summary", summary)
-		if err := e.json("summary.json", summary); runErr == nil && err != nil {
-			runErr = err
-		}
-		if err := e.close(); runErr == nil && err != nil {
-			runErr = err
-		}
+		runErr = finishEvidence(e, &summary, runErr)
 		fmt.Printf("%s success=%v error=%s\n", e.dir, summary.Success, summary.Error)
 	}()
 	if kind != "chaos" && kind != "load" {
@@ -138,4 +123,21 @@ func manifest(n int, seed int64, minMS, maxMS int, failures bool) []audit.Entry 
 		result[i] = audit.Entry{Key: fmt.Sprintf("job-%d-%08d", seed, i), Input: jobs.CreateInput{DurationMS: minMS + random.Intn(maxMS-minMS+1), SimulateFailure: failures && random.Intn(50) == 0}}
 	}
 	return result
+}
+
+// Close and sync raw evidence before declaring the final outcome. A failed
+// summary write leaves no published successful summary and is reported to CLI.
+func finishEvidence(e *evidence, summary *Summary, runErr error) error {
+	runErr = errors.Join(runErr, e.close())
+	summary.Ended = time.Now().UTC()
+	summary.Success = runErr == nil
+	if runErr != nil {
+		summary.Error = runErr.Error()
+	}
+	if err := e.json("summary.json", summary); err != nil {
+		runErr = errors.Join(runErr, err)
+		summary.Success = false
+		summary.Error = runErr.Error()
+	}
+	return runErr
 }

@@ -3,11 +3,15 @@ package experiment
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/amh1k/soup-job-queue/internal/jobs"
+	"io"
 	"math/rand"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -154,5 +158,80 @@ func TestCatalogRejectsDifferentIDsForSameKey(t *testing.T) {
 	result.Job.ID = "00000000-0000-0000-0000-000000000002"
 	if err := c.accept(entry, result); err == nil {
 		t.Fatal("different replay ID accepted")
+	}
+}
+
+func TestEvidenceFailureCannotReportSuccess(t *testing.T) {
+	for _, failure := range []string{"event", "close", "summary"} {
+		t.Run(failure, func(t *testing.T) {
+			dir := t.TempDir()
+			f, err := os.Create(filepath.Join(dir, "events.jsonl"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			e := &evidence{dir: dir, file: f}
+			switch failure {
+			case "event":
+				e.err = fmt.Errorf("injected event write failure")
+			case "close":
+				if err := f.Close(); err != nil {
+					t.Fatal(err)
+				}
+			case "summary":
+				if err := os.Mkdir(filepath.Join(dir, "summary.json"), 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var summary Summary
+			if err := finishEvidence(e, &summary, nil); err == nil || summary.Success || summary.Error == "" {
+				t.Fatalf("failure hidden: err=%v summary=%+v", err, summary)
+			}
+			if failure != "summary" {
+				data, err := os.ReadFile(filepath.Join(dir, "summary.json"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				var persisted Summary
+				if err := json.Unmarshal(data, &persisted); err != nil {
+					t.Fatal(err)
+				}
+				if persisted.Success {
+					t.Fatal("persisted false pass")
+				}
+			}
+		})
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return fn(r) }
+
+func TestCancellationResponseValidation(t *testing.T) {
+	id := "00000000-0000-0000-0000-000000000001"
+	for _, tc := range []struct {
+		status int
+		body   string
+		valid  bool
+	}{
+		{200, `{"id":"00000000-0000-0000-0000-000000000001","status":"cancelled"}`, true},
+		{409, `{}`, true}, {500, `{}`, false}, {200, `{"status":"running"}`, false},
+	} {
+		e := &evidence{dir: t.TempDir()}
+		f, err := os.Create(filepath.Join(e.dir, "events.jsonl"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.file = f
+		c := newClient("http://unused", e)
+		c.http.Transport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: tc.status, Body: io.NopCloser(strings.NewReader(tc.body))}, nil
+		})
+		if got := c.cancelJob(context.Background(), "test", id); got != tc.valid {
+			t.Fatalf("status=%d got %v", tc.status, got)
+		}
+		if err := e.close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

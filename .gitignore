@@ -7,3 +7,8 @@ coverage.out
 # Generated experiment inputs; recreated locally from the seed and options.
 /results/**/manifest.json
 /results/**/operations.json
+
+# Raw experiment logs are delivered in results/archives/*.tar.gz.
+/results/**/events.jsonl
+/results/**/api.log
+/results/**/worker-*.log

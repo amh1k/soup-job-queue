@@ -37,3 +37,13 @@ chaos: build
 
 load: build
 	./bin/load
+
+# Requires Python 3.11+; preserves existing archives and checks their contents.
+.PHONY: evidence
+evidence:
+	python3 scripts/package-evidence.py
+
+# Isolated project: integration tests and startup/restart/persistence checks.
+.PHONY: verify-deployment
+verify-deployment:
+	python3 scripts/verify-deployment.py

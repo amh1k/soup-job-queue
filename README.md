@@ -6,7 +6,19 @@ A durable training-job queue built with Go and PostgreSQL. Clients submit and ca
 
 The API, worker runtime, four-worker Compose deployment, chaos harness, load driver, independent audit, and delivery documents are implemented. Training is simulated with a timer; the committed result is a row in `job_effects`.
 
-**Full runtime verification is pending.** Earlier unit/race tests, builds, and vet checks passed; nineteen real PostgreSQL integration tests skipped. Three chaos attempts and two load attempts failed before their workloads started. A later rerun was interrupted, and Docker daemon access was blocked in that session. These results do not establish correctness under chaos or capacity at 100 RPS. See the [evidence index](docs/evidence.md) and [current DON'T SHIP verdict](docs/verdict.md).
+**Measured results:** three 10,000-job chaos runs with eight workers passed their final audits, with 14 planned worker kills each. The 100 RPS mixed load passed. At 100 unique creates/second, eight workers completed about 70 jobs/second and the queue grew, so the create-only profile failed capacity acceptance; all jobs eventually completed and its final audit passed. The current verdict remains **DON'T SHIP at an unrestricted 100 RPS**, especially with four default deployment workers. The full Go race-test suite passed against PostgreSQL with zero skips, including long-running heartbeat and paused-worker recovery tests; Compose readiness and restart/persistence checks also passed. See the [evidence index](docs/evidence.md) and [verdict](docs/verdict.md).
+
+## Assignment deliverables
+
+| Requested deliverable | Location |
+| --- | --- |
+| Runnable service and usage instructions | This README; [`compose.yaml`](compose.yaml) |
+| One-page design note | [Design](docs/design.md) |
+| Chaos harness, run counts, raw output including failures, and blind spots | [`cmd/chaos`](cmd/chaos), [evidence index](docs/evidence.md), [raw archives](results/archives) |
+| Silent-failure analysis and checks | [Silent failures](docs/silent-failures.md) |
+| SHIP / DON'T SHIP at 100 RPS and fixes | [Verdict](docs/verdict.md) |
+| Reflection paragraph | [Reflection draft](docs/reflection.md) |
+| AI usage disclosure | [AI usage](docs/ai-usage.md) |
 
 ## Reading guide
 
@@ -274,7 +286,7 @@ docker compose exec db psql -U soup -d soup -c "SELECT id, status FROM jobs WHER
 
 Wait for the database to become healthy before the final query. The expected result is the original row; its status may be succeeded because workers process it.
 
-Verification performed in the development sandbox is recorded in [docs/task-1-verification.md](docs/task-1-verification.md). AI assistance is recorded in [docs/ai-usage.md](docs/ai-usage.md).
+Executed checks and remaining gaps are recorded in the [evidence index](docs/evidence.md).
 
 Implementation references: [PostgreSQL constraints](https://www.postgresql.org/docs/18/ddl-constraints.html), [pgx connection pools](https://pkg.go.dev/github.com/jackc/pgx/v5/pgxpool).
 
@@ -310,8 +322,6 @@ Pass `next_cursor` unchanged as the next request's `cursor`, with the same statu
 
 Errors use `{"error":{"code":"...","message":"..."}}`. Invalid input returns 400, oversized input 413, unsupported content type 415, and a request/database deadline 503. A response may be lost after creation commits: retry with the original idempotency key. Cancellation invalidates the existing claim and clears lease ownership; the worker persistence operations check that ownership before renewal or completion. Workers detect lost ownership on heartbeat or finalization and abandon that attempt.
 
-Task 2 verification and pending database checks: [docs/task-2-verification.md](docs/task-2-verification.md).
-
 
 ## Worker persistence operations
 
@@ -338,7 +348,7 @@ TEST_DATABASE_URL='postgres://soup:soup@localhost:5432/soup_test?sslmode=disable
   go test -race -count=10 ./internal/jobs
 ```
 
-Test coverage and environment limits: [docs/task-3-verification.md](docs/task-3-verification.md). Design references: [PostgreSQL row locking](https://www.postgresql.org/docs/18/sql-select.html#SQL-FOR-UPDATE-SHARE), [database clock functions](https://www.postgresql.org/docs/18/functions-datetime.html#FUNCTIONS-DATETIME-CURRENT).
+Design references: [PostgreSQL row locking](https://www.postgresql.org/docs/18/sql-select.html#SQL-FOR-UPDATE-SHARE), [database clock functions](https://www.postgresql.org/docs/18/functions-datetime.html#FUNCTIONS-DATETIME-CURRENT).
 
 
 ## Run workers
@@ -369,7 +379,7 @@ SIGINT/SIGTERM cancels execution, stops heartbeats and recovery, and waits for t
 
 Compose workers restart after unexpected exits. At startup the worker verifies migrations; startup database failures cause an exit and Compose retries. During normal operation, transient claim and recovery failures are logged and retried. Structured logs include worker ID and, for active attempts, job ID, claim version, and attempt count.
 
-Worker unit tests are part of `make test`. `make test-integration` also includes worker lifecycle and SIGKILL/replacement tests on a disposable PostgreSQL database. Environment limitations and exact checks: [docs/task-4-verification.md](docs/task-4-verification.md).
+Worker unit tests are part of `make test`. `make test-integration` also includes worker lifecycle and SIGKILL/replacement tests on a disposable PostgreSQL database. See the [evidence index](docs/evidence.md) for actual execution status.
 
 References: [Go signal contexts](https://pkg.go.dev/os/signal#NotifyContext), [Compose configuration fragments](https://docs.docker.com/reference/compose-file/fragments/).
 
@@ -395,7 +405,7 @@ TEST_DATABASE_URL='postgres://soup:soup@localhost:5432/soup_test?sslmode=disable
 
 The driver does not wait for a response before scheduling the next arrival. Requests beyond `-max-inflight` (default 256) are recorded as drops, not silently delayed. Raw samples contain scheduled, dispatched, and completed timestamps. Reports include response p50/p95/p99, scheduled-to-completion p95, scheduling-lag p95, dispatch/successful request RPS, execution completion rate, errors/drops, and queue growth. Raw metrics include queue age/states/attempts and API pool pressure. API and generator share a process, so their Go memory statistics are combined; worker CPU/max-RSS is recorded at exit and DB resource monitoring still requires external collection.
 
-Experiment results are stored under a new `results/<kind>-<timestamp>-seed<seed>-<unique>/` directory every time. Each contains source/config/environment metadata, a manifest, raw JSONL events, and a final summary if the invocation reaches cleanup. Runs that start also have raw API/worker logs, per-phase HTTP counts, audit output, and (for load) a load report. No directory is overwritten. A run without a final summary is incomplete and should be kept. The CLI exits nonzero on failed preflight, workload errors, drain timeout, invariant violations, insufficient coverage, or unmet load targets.
+Experiment results are stored under a new `results/<kind>-<timestamp>-seed<seed>-<unique>/` directory every time. Each contains source/config/environment metadata, a manifest, raw JSONL events, and a final summary if the invocation reaches cleanup. Runs that start also have raw API/worker logs, per-phase HTTP counts, audit output, and (for load) a load report. Generated manifests and operation plans remain local and are ignored by Git. Submitted raw event/API/worker logs are preserved in compressed archives linked from the evidence index; their uncompressed copies are ignored. No directory is overwritten. A run without a final summary is incomplete and should be kept. The CLI exits nonzero on failed preflight, workload errors, drain timeout, invariant violations, insufficient coverage, or unmet load targets.
 
 An independent final audit compares every manifest key and normalized payload, checks terminal states, attempt limits, ownership cleanup, acknowledged cancellations, orphan/duplicate effects, and effect claim versions. Timed-out creations are retried with their original keys; load reconciliation happens outside the measured stream. That does not erase a measurement error/drop. See [silent failures](docs/silent-failures.md) for protections, targeted tests, and blind spots.
 
@@ -412,6 +422,20 @@ docker compose --profile experiments run --rm load -mode mixed
 docker compose --profile experiments run --rm load -mode create
 ```
 
-The experiment services are opt-in and use an init process for child reaping; no Docker socket mount is needed. Their workers only read their fresh schema, so normal workers can coexist, although running the normal stack at the same time will compete for host/database resources. For capacity evaluation, use a dedicated test deployment and record its hardware limits.
+The experiment services are opt-in and use an init process for child reaping; no Docker socket mount is needed. Their workers operate only in their fresh schema, so normal workers can coexist, although running the normal stack at the same time will compete for host/database resources. For capacity evaluation, use a dedicated test deployment and record its hardware limits.
 
-Deliverables: [one-page design note](docs/design.md), [failure analysis](docs/silent-failures.md), [raw evidence index](docs/evidence.md), [verdict](docs/verdict.md), [reflection draft](docs/reflection.md), and [AI usage](docs/ai-usage.md). Verification details: [Tasks 5–6](docs/task-5-6-verification.md).
+### Package experiment evidence
+
+Run `make evidence` after experiments (requires Python 3.11+). It archives each run's raw logs and reports, including preflight failures and incomplete runs, and updates `results/archives/sha256.json`. Generated manifests and operation plans remain local. Existing archives are verified against their checksums and local originals; differing archives are rejected without overwriting. Keep local run files unchanged after packaging.
+
+New Docker builds embed a source checksum manifest; experiment metadata records it and the harness executable SHA-256. Worker-start events record the worker executable SHA-256. Earlier recorded runs predate this identification and retain their provenance limitation. Rebuild experiment images before rerunning the corrected harness.
+
+### Verify the deployed service and PostgreSQL failure cases
+
+```sh
+make verify-deployment
+```
+
+Requires Docker Compose 2.24.4+ (for the port reset override), Python 3.11+, and access to pull the Go test image. This uses a fresh project and disposable database volume, runs all Go tests with the race detector against PostgreSQL, and checks readiness, worker execution, and job/effect persistence after a full down/up cycle. It publishes no API port and leaves the normal deployment untouched. The disposable volume is removed during cleanup; logs and a summary remain under `results/checks/soup-verify-*`. The two added lifecycle cases observe actual lease renewal during a long job and stop/resume a worker after its claim is reassigned.
+
+The measured eight-worker capacity failure remains part of the verdict. To investigate additional capacity, rerun the rebuilt create profile with `-workers 16`; a passing result would apply to that experiment's worker count and topology, not automatically to the four-worker deployment.

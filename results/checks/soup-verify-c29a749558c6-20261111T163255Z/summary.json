@@ -1,0 +1,5 @@
+{
+  "project": "soup-verify-c29a749558c6",
+  "success": false,
+  "error": "['docker', 'compose', '-p', 'soup-verify-c29a749558c6', '-f', 'compose.yaml', '-f', 'compose.verify.yaml', 'up', '--build', '-d']: exit 1; see results/checks/soup-verify-c29a749558c6-20261111T163255Z/001.log; cleanup: ['docker', 'compose', '-p', 'soup-verify-c29a749558c6', '-f', 'compose.yaml', '-f', 'compose.verify.yaml', 'down', '-v', '--remove-orphans']: exit 1; see results/checks/soup-verify-c29a749558c6-20261111T163255Z/003.log"
+}

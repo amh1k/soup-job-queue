@@ -1,0 +1,64 @@
+{
+  "kind": "load",
+  "Started": "2026-11-11T14:29:40.100288998Z",
+  "Ended": "2026-11-11T14:37:32.430042884Z",
+  "success": false,
+  "error": "load acceptance targets failed",
+  "workload_started": true,
+  "settings": {
+    "output": "results",
+    "worker_binary": "/app/worker",
+    "seed": 1,
+    "workers": 8,
+    "jobs": 10000,
+    "kill_interval": 2000000000,
+    "fault_duration": 30000000000,
+    "drain_timeout": 300000000000,
+    "timeout": 900000000000,
+    "rps": 100,
+    "warmup": 30000000000,
+    "duration": 300000000000,
+    "mode": "create",
+    "max_inflight": 256
+  },
+  "schema": "experiment_1794407380299530786",
+  "Kills": 0,
+  "UnexpectedWorkerExits": 0,
+  "ExpectedJobs": 33032,
+  "AcceptedJobs": 33032,
+  "AcceptedCancellations": 0,
+  "audit": {
+    "valid": true,
+    "Expected": 33032,
+    "Found": 33032,
+    "States": {
+      "succeeded": 33032
+    },
+    "Attempts": 33032,
+    "Exhausted": 0,
+    "violations": []
+  },
+  "load": {
+    "Successful": 30000,
+    "SuccessfulRPS": 100,
+    "ExecutionCompletionsPerSecond": 69.62662823610043,
+    "Pass": false,
+    "Scheduled": 30000,
+    "Sent": 30000,
+    "Dropped": 0,
+    "Errors": 0,
+    "ActualRPS": 100,
+    "LatencyP50MS": 4.910035,
+    "LatencyP95MS": 11.319835,
+    "LatencyP99MS": 32.075012,
+    "ScheduledLatencyP95MS": 12.212048,
+    "ScheduleLagP95MS": 1.186293,
+    "BacklogSlopePerSecond": 30.47818360193676,
+    "FirstBacklog": 903,
+    "LastBacklog": 9988,
+    "MetricsSamples": 300,
+    "Failures": [
+      "sustained backlog growth"
+    ]
+  }
+}

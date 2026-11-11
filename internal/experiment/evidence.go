@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,7 +56,20 @@ func newEvidence(root, kind string, seed int64) (*evidence, error) {
 			hashes[path] = hex.EncodeToString(sum[:])
 		}
 	}
-	metadata := map[string]any{"started_at": time.Now().UTC(), "seed": seed, "kind": kind, "commit": git("rev-parse", "HEAD"), "git_status": git("status", "--porcelain"), "source_hashes": hashes, "go": runtime.Version(), "os": runtime.GOOS, "arch": runtime.GOARCH, "cpus": runtime.NumCPU()}
+	executable, err := os.Executable()
+	if err != nil {
+		file.Close()
+		return nil, err
+	}
+	digest, err := fileSHA256(executable)
+	if err != nil {
+		file.Close()
+		return nil, err
+	}
+	metadata := map[string]any{"executable_sha256": digest, "started_at": time.Now().UTC(), "seed": seed, "kind": kind, "commit": git("rev-parse", "HEAD"), "git_status": git("status", "--porcelain"), "source_hashes": hashes, "go": runtime.Version(), "os": runtime.GOOS, "arch": runtime.GOARCH, "cpus": runtime.NumCPU()}
+	if source, err := os.ReadFile("/app/source.sha256"); err == nil {
+		metadata["build_source_manifest"] = string(source)
+	}
 	for _, path := range []string{"/sys/fs/cgroup/cpu.max", "/sys/fs/cgroup/memory.max", "/proc/meminfo"} {
 		if b, err := os.ReadFile(path); err == nil {
 			metadata[path] = string(b)
@@ -69,7 +83,27 @@ func newEvidence(root, kind string, seed int64) (*evidence, error) {
 	return e, nil
 }
 func (e *evidence) write(name string, data []byte) error {
-	return os.WriteFile(filepath.Join(e.dir, name), data, 0644)
+	f, err := os.CreateTemp(e.dir, ".evidence-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(f.Name())
+	if _, err = f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Chmod(0644); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Close(); err != nil {
+		return err
+	}
+	return os.Rename(f.Name(), filepath.Join(e.dir, name))
 }
 func (e *evidence) json(name string, value any) error {
 	data, err := json.MarshalIndent(value, "", "  ")
@@ -97,4 +131,17 @@ func (e *evidence) close() error {
 		return syncErr
 	}
 	return closeErr
+}
+
+func fileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

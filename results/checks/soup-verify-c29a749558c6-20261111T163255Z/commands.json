@@ -1,0 +1,68 @@
+[
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c29a749558c6",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "config",
+      "--quiet"
+    ],
+    "exit_code": 0,
+    "output": "000.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c29a749558c6",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "up",
+      "--build",
+      "-d"
+    ],
+    "exit_code": 1,
+    "output": "001.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c29a749558c6",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "logs",
+      "--no-color"
+    ],
+    "exit_code": 1,
+    "output": "002.log"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "-p",
+      "soup-verify-c29a749558c6",
+      "-f",
+      "compose.yaml",
+      "-f",
+      "compose.verify.yaml",
+      "down",
+      "-v",
+      "--remove-orphans"
+    ],
+    "exit_code": 1,
+    "output": "003.log"
+  }
+]
